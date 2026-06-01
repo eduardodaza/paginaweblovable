@@ -6,6 +6,9 @@
 
 :root {
   color-scheme: light;
+  --gradient-hero: linear-gradient(135deg, hsl(12 85% 55%), hsl(25 90% 60%));
+  --shadow-premium: 0 8px 32px -4px hsl(12 85% 55% / 0.35);
+  --shadow-card: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
 }
 
 html,
