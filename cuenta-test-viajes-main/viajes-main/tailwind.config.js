@@ -8,11 +8,22 @@ module.exports = {
         foreground: "hsl(260 30% 12%)",
         primary: {
           DEFAULT: "hsl(12 85% 55%)",
+          foreground: "#fff",
           soft: "hsl(12 85% 55% / 0.08)",
         },
-        accent: "hsl(260 60% 30%)",
-        muted: "hsl(260 10% 45%)",
+        accent: {
+          DEFAULT: "hsl(260 60% 30%)",
+          foreground: "#fff",
+        },
+        muted: {
+          DEFAULT: "hsl(260 10% 45%)",
+          foreground: "hsl(260 10% 45%)",
+        },
         border: "hsl(260 30% 12% / 0.1)",
+        card: {
+          DEFAULT: "#fff",
+          foreground: "hsl(260 30% 12%)",
+        },
       },
       fontFamily: {
         display: ["'Cormorant Garamond'", "serif"],
