@@ -14,7 +14,7 @@ const DESTINATIONS = [
   { name: "Londres", country: "Reino Unido", img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80" },
 ];
 
-export function Destinations() {
+export function Destinations({ locale: _locale }: { locale?: string }) {
   return (
     <section id="destinos" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
