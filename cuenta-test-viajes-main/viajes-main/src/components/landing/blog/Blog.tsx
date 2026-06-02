@@ -9,7 +9,7 @@ const POSTS = [
   { title: "Cómo usar IA para viajar", category: "Tecnología", author: "Daniel López", date: "22 Abr 2026", img: "https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=900&q=80" },
 ];
 
-export function Blog() {
+export function Blog({ locale: _locale }: { locale?: string }) {
   return (
     <section id="blog" className="py-24 px-6">
       <div className="max-w-7xl mx-auto">
