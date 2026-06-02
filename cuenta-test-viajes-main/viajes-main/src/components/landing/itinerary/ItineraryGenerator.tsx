@@ -1,190 +1,314 @@
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, MapPin, Calendar, Wallet, Users, Heart, Loader2 } from "lucide-react";
-import type { ItineraryData } from "@/lib/types";
+// src/components/landing/itinerary/ItineraryGenerator.tsx
+// Reemplaza el generador de Lovable con el TripForm original completo.
+// La landing de Lovable llama a este componente; cuando el usuario hace submit
+// se llama onSubmit(form) que sube a index.tsx y dispara /api/generate.
 
-const INTERESTS = ["Cultura", "Gastronomía", "Naturaleza", "Aventura", "Playa", "Vida nocturna", "Familia", "Lujo"];
+import React, { useState, useEffect } from "react";
+import type { TripFormData, Budget, TravelerType, Locale } from "@/lib/types";
+import { t } from "@/lib/i18n";
 
-const BUDGET_MAP: Record<string, string> = {
-  bajo: "economico",
-  medio: "moderado",
-  alto: "premium",
-  lujo: "lujo",
+const INTERESTS = [
+  "🏛️ Historia & Cultura", "🍽️ Gastronomía", "🌿 Naturaleza",
+  "🎵 Vida nocturna", "🛍️ Compras", "🎨 Arte & Museos",
+  "🧗 Aventura", "📷 Fotografía", "🧘 Bienestar", "👨‍👩‍👧 Familiar",
+  "🏖️ Playas", "⚽ Deporte",
+];
+
+const BUDGETS: Budget[] = ["economico", "moderado", "premium", "lujo"];
+const BUDGET_SHORT: Record<Budget, string> = {
+  economico: "$", moderado: "$$", premium: "$$$", lujo: "ELITE",
 };
 
-export function ItineraryGenerator() {
-  const [destination, setDestination] = useState("");
+interface Props {
+  onSubmit: (data: TripFormData) => void;
+  locale: Locale;
+  onLocaleChange: (l: Locale) => void;
+}
+
+export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) {
+  const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
-  const [start, setStart] = useState("");
-  const [end, setEnd] = useState("");
-  const [budget, setBudget] = useState("medio");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [travelers, setTravelers] = useState(2);
-  const [selected, setSelected] = useState<string[]>(["Cultura", "Gastronomía"]);
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<ItineraryData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [travelerType, setTravelerType] = useState<TravelerType>("pareja");
+  const [budget, setBudget] = useState<Budget>("moderado");
+  const [interests, setInterests] = useState<string[]>([
+    "🏛️ Historia & Cultura", "🍽️ Gastronomía",
+  ]);
+  const [dayStartTime, setDayStartTime] = useState("08:00");
+  const [dayEndTime, setDayEndTime] = useState("23:00");
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [dateRange, setDateRange] = useState("");
+  const [citySuggestions, setCitySuggestions] = useState<{ city: string; country: string }[]>([]);
+  const [showCitySuggest, setShowCitySuggest] = useState(false);
 
-  const toggle = (i: string) =>
-    setSelected((s) => (s.includes(i) ? s.filter((x) => x !== i) : [...s, i]));
+  // Autocomplete ciudad → país via Nominatim (gratis, sin API key)
+  useEffect(() => {
+    const q = city.trim();
+    if (q.length < 2) { setCitySuggestions([]); return; }
+    const ctrl = new AbortController();
+    const tm = setTimeout(async () => {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=6&accept-language=${locale}`;
+        const res = await fetch(url, {
+          signal: ctrl.signal,
+          headers: { "Accept": "application/json" },
+        });
+        if (!res.ok) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const data: any[] = await res.json();
+        const seen = new Set<string>();
+        const list: { city: string; country: string }[] = [];
+        for (const r of data) {
+          const a = r.address || {};
+          const cityName = a.city || a.town || a.village || a.municipality || a.county || r.display_name?.split(",")[0];
+          const countryName = a.country;
+          if (!cityName || !countryName) continue;
+          const k = `${cityName}|${countryName}`.toLowerCase();
+          if (seen.has(k)) continue;
+          seen.add(k);
+          list.push({ city: cityName, country: countryName });
+          if (list.length >= 6) break;
+        }
+        setCitySuggestions(list);
+      } catch { /* silent */ }
+    }, 300);
+    return () => { ctrl.abort(); clearTimeout(tm); };
+  }, [city, locale]);
 
-  const calcDays = () => {
-    if (!start || !end) return 3;
-    const diff = Math.ceil(
-      (new Date(end).getTime() - new Date(start).getTime()) / 86400000
-    );
-    return diff > 0 ? diff : 3;
-  };
+  useEffect(() => {
+    const today = new Date();
+    const end = new Date(today);
+    end.setDate(end.getDate() + 3);
+    setStartDate(today.toISOString().split("T")[0]);
+    setEndDate(end.toISOString().split("T")[0]);
+  }, []);
 
-  const generate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!destination) return;
-    setLoading(true);
-    setResult(null);
-    setError(null);
-
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          city: destination,
-          country: country || destination,
-          startDate: start || new Date().toISOString().slice(0, 10),
-          endDate:
-            end ||
-            new Date(Date.now() + calcDays() * 86400000)
-              .toISOString()
-              .slice(0, 10),
-          days: calcDays(),
-          budget: BUDGET_MAP[budget] ?? "moderado",
-          travelers,
-          travelerType: "pareja",
-          interests: selected,
-          locale: "es",
-        }),
+  useEffect(() => {
+    if (!startDate || !endDate) return;
+    const sd = new Date(startDate + "T12:00:00");
+    const ed = new Date(endDate + "T12:00:00");
+    if (ed < sd) { setDateRange(""); return; }
+    const days = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+    const fmt = (d: Date) =>
+      d.toLocaleDateString(locale === "es" ? "es-ES" : "en-US", {
+        day: "numeric", month: "short", year: "numeric",
       });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data: ItineraryData = await res.json();
-      setResult(data);
-    } catch {
-      setError("No se pudo generar el itinerario. Por favor intenta de nuevo.");
-    } finally {
-      setLoading(false);
-    }
-  };
+    setDateRange(`${fmt(sd)} → ${fmt(ed)} · ${days} ${days > 1 ? (locale === "es" ? "días" : "days") : locale === "es" ? "día" : "day"}`);
+  }, [startDate, endDate, locale]);
+
+  function toggleInterest(i: string) {
+    setInterests((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]);
+  }
+
+  function validate(): boolean {
+    const errs: Record<string, string> = {};
+    if (!city.trim()) errs.city = t("errorRequired", locale);
+    if (!country.trim()) errs.country = t("errorRequired", locale);
+    if (!startDate) errs.startDate = t("errorRequired", locale);
+    if (!endDate) errs.endDate = t("errorRequired", locale);
+    if (startDate && endDate && new Date(endDate) < new Date(startDate))
+      errs.endDate = t("errorDateRange", locale);
+    if (dayStartTime && dayEndTime && dayEndTime <= dayStartTime)
+      errs.dayEndTime = locale === "es" ? "Debe ser posterior a la hora de inicio" : "Must be after start time";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!validate()) return;
+    onSubmit({
+      city, country, startDate, endDate, travelers, travelerType, budget, interests, locale,
+      dayStartTime, dayEndTime,
+    });
+  }
+
+  const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
   return (
-    <section
-      id="generador"
-      className="py-24 px-6 relative"
-      style={{
-        background:
-          "linear-gradient(180deg, transparent, oklch(0.96 0.02 220 / 0.5))",
-      }}
-    >
-      <div className="max-w-6xl mx-auto">
-        <div className="text-center max-w-2xl mx-auto mb-12">
-          <span className="text-sm font-semibold text-primary uppercase tracking-wider">
-            Generador con IA
+    <section id="generador" className="py-16 px-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Título de sección */}
+        <div className="text-center max-w-2xl mx-auto mb-10">
+          <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
+            {locale === "es" ? "Planifica tu viaje" : "Plan your trip"}
           </span>
-          <h2 className="text-4xl md:text-5xl font-bold mt-3">
-            Tu itinerario en segundos
+          <h2 className="text-4xl md:text-5xl font-display italic mt-3">
+            {locale === "es" ? "Manifiesto del viaje" : "Trip Manifest"}
           </h2>
-          <p className="mt-4 text-muted-foreground">
-            Cuéntanos tu viaje ideal y nuestra IA hace el resto.
-          </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-8">
-          {/* Form */}
-          <motion.form
-            onSubmit={generate}
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            className="lg:col-span-2 bg-card border border-border rounded-3xl p-7 space-y-5"
-            style={{ boxShadow: "var(--shadow-card)" }}
-          >
-            <Field icon={<MapPin className="w-4 h-4" />} label="Ciudad">
-              <input
-                required
-                value={destination}
-                onChange={(e) => setDestination(e.target.value)}
-                placeholder="Ej. Tokio"
-                className="w-full bg-transparent outline-none"
-              />
-            </Field>
+        <div className="bg-white border border-border shadow-manifest p-6 md:p-10 rounded-sm relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-primary to-background" />
 
-            <Field icon={<MapPin className="w-4 h-4" />} label="País">
-              <input
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
-                placeholder="Ej. Japón"
-                className="w-full bg-transparent outline-none"
-              />
-            </Field>
+          {/* Header del formulario */}
+          <div className="flex justify-between items-end mb-8 md:mb-10">
+            <h3 className="text-sm font-mono uppercase tracking-widest">
+              {locale === "es" ? "Manifiesto del viaje (v.01)" : "Trip Manifest (v.01)"}
+            </h3>
+            <div className="flex items-center gap-4">
+              {/* Selector de idioma */}
+              <div className="flex bg-black/5 rounded-full p-1 text-[10px] font-mono">
+                <button type="button" onClick={() => onLocaleChange("es")}
+                  className={`px-3 py-1 rounded-full transition-colors ${locale === "es" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  ES
+                </button>
+                <button type="button" onClick={() => onLocaleChange("en")}
+                  className={`px-3 py-1 rounded-full transition-colors ${locale === "en" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
+                  EN
+                </button>
+              </div>
+              <span className="hidden sm:inline text-[10px] text-muted-foreground font-mono">{tz}</span>
+            </div>
+          </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field icon={<Calendar className="w-4 h-4" />} label="Salida">
-                <input
-                  type="date"
-                  value={start}
-                  onChange={(e) => setStart(e.target.value)}
-                  className="w-full bg-transparent outline-none"
-                />
-              </Field>
-              <Field icon={<Calendar className="w-4 h-4" />} label="Regreso">
-                <input
-                  type="date"
-                  value={end}
-                  onChange={(e) => setEnd(e.target.value)}
-                  className="w-full bg-transparent outline-none"
-                />
-              </Field>
+          <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10">
+            {/* Ciudad + País */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <div className="space-y-2 relative">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("city", locale)}
+                </label>
+                <input type="text" value={city}
+                  onChange={(e) => { setCity(e.target.value); setShowCitySuggest(true); }}
+                  onFocus={() => setShowCitySuggest(true)}
+                  onBlur={() => setTimeout(() => setShowCitySuggest(false), 200)}
+                  autoComplete="off"
+                  placeholder={locale === "es" ? "Ej. Barcelona" : "e.g. Kyoto"}
+                  className={`w-full text-xl md:text-2xl font-display italic bg-transparent border-b ${errors.city ? "border-red-500" : "border-border"} focus:border-primary outline-none py-2 transition-colors placeholder:text-foreground/30`} />
+                {showCitySuggest && citySuggestions.length > 0 && (
+                  <ul className="absolute left-0 right-0 top-full z-30 bg-white border border-border shadow-lg max-h-64 overflow-auto text-sm">
+                    {citySuggestions.map((s, i) => (
+                      <li key={i}
+                        onMouseDown={(e) => { e.preventDefault(); setCity(s.city); setCountry(s.country); setShowCitySuggest(false); }}
+                        className="px-3 py-2 cursor-pointer hover:bg-black/5">
+                        <span className="font-medium">{s.city}</span>
+                        <span className="text-muted-foreground"> · {s.country}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {errors.city && <p className="text-red-600 text-[11px]">{errors.city}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("country", locale)}
+                </label>
+                <input type="text" value={country} onChange={(e) => setCountry(e.target.value)}
+                  placeholder={locale === "es" ? "España" : "Japan"}
+                  autoComplete="off"
+                  className={`w-full text-xl md:text-2xl font-display italic bg-transparent border-b ${errors.country ? "border-red-500" : "border-border"} focus:border-primary outline-none py-2 transition-colors placeholder:text-foreground/30`} />
+                {errors.country && <p className="text-red-600 text-[11px]">{errors.country}</p>}
+              </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <Field icon={<Wallet className="w-4 h-4" />} label="Presupuesto">
-                <select
-                  value={budget}
-                  onChange={(e) => setBudget(e.target.value)}
-                  className="w-full bg-transparent outline-none"
-                >
-                  <option value="bajo">Económico</option>
-                  <option value="medio">Medio</option>
-                  <option value="alto">Premium</option>
-                  <option value="lujo">Lujo</option>
-                </select>
-              </Field>
-              <Field icon={<Users className="w-4 h-4" />} label="Viajeros">
-                <input
-                  type="number"
-                  min={1}
-                  value={travelers}
-                  onChange={(e) => setTravelers(+e.target.value)}
-                  className="w-full bg-transparent outline-none"
-                />
-              </Field>
+            {/* Fechas + viajeros */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("startDate", locale)}
+                </label>
+                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("endDate", locale)}
+                </label>
+                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
+                {errors.endDate && <p className="text-red-600 text-[11px]">{errors.endDate}</p>}
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("travelers", locale)}
+                </label>
+                <input type="number" min={1} max={20} value={travelers}
+                  onChange={(e) => setTravelers(Number(e.target.value))}
+                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
+              </div>
             </div>
 
-            <div>
-              <label className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-2">
-                <Heart className="w-3.5 h-3.5" /> Intereses
+            {/* Horario del día */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {locale === "es" ? "Hora de inicio del día" : "Day start time"}
+                </label>
+                <input type="time" value={dayStartTime} onChange={(e) => setDayStartTime(e.target.value)}
+                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {locale === "es" ? "Hora de cierre del día" : "Day end time"}
+                </label>
+                <input type="time" value={dayEndTime} onChange={(e) => setDayEndTime(e.target.value)}
+                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
+                {errors.dayEndTime && <p className="text-red-600 text-[11px]">{errors.dayEndTime}</p>}
+              </div>
+            </div>
+
+            {dateRange && (
+              <div className="font-mono text-[11px] text-muted-foreground -mt-4">
+                🗓 {dateRange} · ⏰ {dayStartTime} → {dayEndTime}
+              </div>
+            )}
+
+            {/* Tipo de viajero + presupuesto */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+              <div className="space-y-4">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("travelerType", locale)}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(["pareja", "familia", "amigos", "solo", "negocios"] as TravelerType[]).map((tt) => (
+                    <button type="button" key={tt} onClick={() => setTravelerType(tt)}
+                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                        travelerType === tt
+                          ? "border-primary bg-primary text-white"
+                          : "border-border hover:border-primary"
+                      }`}>
+                      {t(tt, locale)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-4">
+                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                  {t("budget", locale)}
+                </label>
+                <div className="grid grid-cols-4 gap-1">
+                  {BUDGETS.map((b) => (
+                    <button type="button" key={b} onClick={() => setBudget(b)} title={t(b, locale)}
+                      className={`h-10 grid place-items-center border text-xs font-mono transition-colors ${
+                        budget === b
+                          ? "border-primary bg-primary text-white"
+                          : "border-border hover:bg-black/5"
+                      } ${b === "lujo" ? "text-[9px]" : ""}`}>
+                      {BUDGET_SHORT[b]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Intereses */}
+            <div className="space-y-4">
+              <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
+                {t("interests", locale)}
               </label>
               <div className="flex flex-wrap gap-2">
                 {INTERESTS.map((i) => {
-                  const active = selected.includes(i);
+                  const on = interests.includes(i);
                   return (
-                    <button
-                      type="button"
-                      key={i}
-                      onClick={() => toggle(i)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                        active
-                          ? "bg-primary text-primary-foreground border-primary"
-                          : "bg-background border-border hover:border-primary/50"
-                      }`}
-                    >
+                    <button type="button" key={i} onClick={() => toggleInterest(i)}
+                      className={`px-4 py-2 text-xs rounded-full border transition-all ${
+                        on
+                          ? "bg-accent text-white border-accent"
+                          : "bg-black/5 border-transparent hover:border-primary"
+                      }`}>
                       {i}
                     </button>
                   );
@@ -192,148 +316,20 @@ export function ItineraryGenerator() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 rounded-full text-primary-foreground font-semibold flex items-center justify-center gap-2 hover:opacity-95 disabled:opacity-70 transition"
-              style={{
-                background: "var(--gradient-hero)",
-                boxShadow: "var(--shadow-premium)",
-              }}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Generando...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" /> Generar Itinerario
-                </>
-              )}
+            <button type="submit"
+              className="w-full group relative overflow-hidden bg-foreground text-background py-5 md:py-6 flex items-center justify-center gap-4 hover:bg-accent transition-colors duration-500">
+              <span className="font-mono text-sm uppercase tracking-[0.2em]">
+                {locale === "es" ? "Diseñar mi viaje" : "Sequence my journey"}
+              </span>
+              <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
             </button>
+          </form>
 
-            {error && (
-              <p className="text-sm text-red-600 text-center">{error}</p>
-            )}
-          </motion.form>
-
-          {/* Result panel */}
-          <div
-            className="lg:col-span-3 bg-card border border-border rounded-3xl p-7 min-h-[400px]"
-            style={{ boxShadow: "var(--shadow-card)" }}
-          >
-            <AnimatePresence mode="wait">
-              {!result && !loading && (
-                <motion.div
-                  key="empty"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  exit={{ opacity: 0 }}
-                  className="h-full flex flex-col items-center justify-center text-center py-16 text-muted-foreground"
-                >
-                  <Sparkles className="w-12 h-12 mb-4 text-primary/40" />
-                  <p className="font-medium text-foreground">
-                    Tu itinerario aparecerá aquí
-                  </p>
-                  <p className="text-sm mt-1">
-                    Completa el formulario y deja que la IA cree tu plan ideal.
-                  </p>
-                </motion.div>
-              )}
-
-              {loading && (
-                <motion.div
-                  key="loading"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="h-full flex flex-col items-center justify-center py-16"
-                >
-                  <Loader2 className="w-10 h-10 animate-spin text-primary" />
-                  <p className="mt-4 text-sm text-muted-foreground">
-                    Creando tu viaje perfecto...
-                  </p>
-                </motion.div>
-              )}
-
-              {result && (
-                <motion.div
-                  key="result"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="space-y-4 overflow-y-auto max-h-[580px] pr-1"
-                >
-                  <div>
-                    <h3 className="text-xl font-bold">
-                      {result.city}, {result.country}
-                    </h3>
-                    {result.tagline && (
-                      <p className="text-sm text-muted-foreground mt-1 italic">
-                        {result.tagline}
-                      </p>
-                    )}
-                  </div>
-
-                  {result.days.map((d, i) => (
-                    <motion.div
-                      key={d.dayNum}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.08 }}
-                      className="border-l-2 border-primary pl-4 py-2"
-                    >
-                      <div className="text-xs font-semibold text-primary">
-                        DÍA {d.dayNum} · {d.date}
-                      </div>
-                      <div className="font-semibold mt-0.5">{d.theme}</div>
-                      {d.zone && (
-                        <div className="text-xs text-muted-foreground mb-2">
-                          {d.zone}
-                        </div>
-                      )}
-                      <ul className="space-y-1 text-sm text-muted-foreground">
-                        {d.items.slice(0, 5).map((item) => (
-                          <li key={item.id} className="flex gap-2">
-                            <span className="font-mono text-[10px] opacity-60 pt-0.5 shrink-0">
-                              {item.time}
-                            </span>
-                            <span>{item.name}</span>
-                          </li>
-                        ))}
-                        {d.items.length > 5 && (
-                          <li className="text-xs opacity-50">
-                            +{d.items.length - 5} actividades más…
-                          </li>
-                        )}
-                      </ul>
-                    </motion.div>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <p className="mt-6 text-center text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
+            {locale === "es" ? "Resultados generados en ~10s con IA." : "Results generated in ~10s with AI."}
+          </p>
         </div>
       </div>
     </section>
-  );
-}
-
-function Field({
-  icon,
-  label,
-  children,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="block">
-      <span className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5 mb-1.5">
-        {icon} {label}
-      </span>
-      <div className="px-4 py-3 rounded-xl bg-background border border-border focus-within:border-primary transition">
-        {children}
-      </div>
-    </label>
   );
 }
