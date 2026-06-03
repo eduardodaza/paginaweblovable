@@ -118,48 +118,37 @@ Respond ONLY with a valid JSON array (no markdown, no backticks, no explanation)
 ]}]`;
 }
 
-// ── Prompt para metadata: restaurants + events + header ───────
+// ── Prompts separados para metadata (cada uno ~800 tokens) ───
 export function buildMetadataPrompt(form: TripFormData): string {
   const ctx = buildSharedContext(form);
-  const { sd, ed, totalDays, lang, dayStart, dayEnd, startMonth, startDay, endDay,
-          travelerLine, budgetLine } = ctx;
-  const locale = ctx.locale;
-  const dateStr    = sd.toLocaleDateString(locale === "es" ? "es-ES" : locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const dateEndStr = ed.toLocaleDateString(locale === "es" ? "es-ES" : locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
-  const minResto = Math.max(9, totalDays * 3);
-  const maxResto = Math.min(18, totalDays * 3 + 3);
-
-  return `You are a local expert for ${form.city}, ${form.country}. Generate trip metadata in ${lang}.
-
-TRIP: ${dateStr} to ${dateEndStr} (${totalDays} days, ${startMonth} ${startDay}–${endDay}) | ${form.travelers} (${form.travelerType}) | Budget: ${form.budget}
-Traveler: ${travelerLine}
-Budget: ${budgetLine}
-Day window: ${dayStart}–${dayEnd}
-
-Respond ONLY with a valid JSON object (no markdown, no backticks):
-{
-  "city": "${form.city}",
-  "country": "${form.country}",
-  "tagline": "inspiring phrase max 10 words",
-  "summary": "2-sentence overview matching traveler + budget",
-  "weather": {"maxTemp": 25, "minTemp": 15, "description": "weather for ${startMonth}"},
-  "estimatedBudgetPerDay": "realistic range in local currency",
-  "restaurants": [
-    {"name":"Real Restaurant","type":"cuisine","priceRange":"$$","rating":"4.3","specialty":"dish","zone":"neighborhood","source":"TripAdvisor","address":"address if known","dayHint":1,"mealHint":"lunch"}
-  ],
-  "events": [
-    {"name":"Real Event","type":"festival","when":"YYYY-MM-DD or recurrence","description":"1 sentence","price":"Free or ticket price","venue":"Real Venue","ticketUrl":"https://... or empty string","source":"local"}
-  ],
-  "alerts": [
-    {"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"}
-  ]
+  const { totalDays, lang, startMonth, startDay, endDay, travelerLine, budgetLine } = ctx;
+  return `Local expert for ${form.city}, ${form.country}. Generate in ${lang}.
+TRIP: ${totalDays} days (${startMonth} ${startDay}–${endDay}) | Budget: ${form.budget} | ${travelerLine} | ${budgetLine}
+Respond ONLY valid JSON, no markdown:
+{"city":"${form.city}","country":"${form.country}","tagline":"inspiring phrase max 10 words","summary":"2-sentence overview","weather":{"maxTemp":25,"minTemp":15,"description":"weather for ${startMonth}"},"estimatedBudgetPerDay":"realistic range","alerts":[{"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"},{"level":"bajo","zone":"zone2","description":"note2","tip":"tip2"}]}
+RULES: weather must match ${startMonth} in ${form.city}. alerts: 2-4 real safety notes.`;
 }
 
-CONSTRAINTS:
-- restaurants: exactly ${minResto}–${maxResto} real entries. dayHint 1..${totalDays}. At least 3/day (breakfast+lunch+dinner). Budget-consistent prices.
-- events: ≥4 real entries. Include festivals/traditions in ${form.city} for ${startMonth}. Include iconic recurring shows if nothing special. For each event with tickets (concerts, sports, paid shows), set ticketUrl to the official booking URL (Ticketmaster, Eventim, official venue site, etc.) or leave as empty string if free/unknown.
-- alerts: 2–4 entries.
-- All must be REAL places/events in ${form.city}, ${form.country}.`;
+export function buildRestaurantsPrompt(form: TripFormData): string {
+  const ctx = buildSharedContext(form);
+  const { totalDays, lang, startMonth, travelerLine, budgetLine } = ctx;
+  const minResto = Math.max(9, totalDays * 3);
+  const maxResto = Math.min(18, totalDays * 3 + 3);
+  return `Local food expert for ${form.city}, ${form.country}. Generate in ${lang}.
+TRIP: ${totalDays} days (${startMonth}) | Budget: ${form.budget} | ${travelerLine} | ${budgetLine}
+Respond ONLY a valid JSON array, no markdown:
+[{"name":"Real Restaurant Name","type":"cuisine type","priceRange":"$$","rating":"4.3","specialty":"signature dish","zone":"neighborhood","source":"TripAdvisor","address":"real address or empty","dayHint":1,"mealHint":"breakfast"}]
+RULES: exactly ${minResto} to ${maxResto} entries. dayHint 1..${totalDays}. Cover breakfast+lunch+dinner every day. Budget-consistent. ALL must be real restaurants in ${form.city}.`;
+}
+
+export function buildEventsPrompt(form: TripFormData): string {
+  const ctx = buildSharedContext(form);
+  const { totalDays, lang, startMonth, startDay, endDay } = ctx;
+  return `Local events expert for ${form.city}, ${form.country}. Generate in ${lang}.
+TRIP: ${totalDays} days (${startMonth} ${startDay}–${endDay}) in ${form.city}.
+Respond ONLY a valid JSON array, no markdown:
+[{"name":"Real Event Name","type":"festival","when":"YYYY-MM-DD","description":"1 sentence","price":"Free or price in local currency","venue":"Real Venue Name","ticketUrl":"https://official-ticket-site.com or empty string","source":"local"}]
+RULES: minimum 6 entries. Types: festival, concert, sport, exhibition, permanent. Include: local festivals for ${startMonth}, concerts, sports matches, museum exhibits. For paid events (concerts, sport, shows) set ticketUrl to the REAL official ticket URL (ticketmaster.com, eventim.com, official venue website). Free events: ticketUrl="". ALL must be real events in ${form.city} around ${startMonth}.`;
 }
 
 // ── Legacy single-call (kept, not used in main flow) ─────────
