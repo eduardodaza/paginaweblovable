@@ -6,62 +6,62 @@ import { MapPin, ArrowRight, Sparkles } from "lucide-react";
 const DESTINATIONS = [
   {
     name: "París",       country: "Francia",
-    img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "💕 Romántico",   gradient: "from-pink-900/80",
   },
   {
     name: "Roma",        country: "Italia",
-    img: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1552832230-c0197dd311b5?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🏛 Historia",    gradient: "from-amber-900/80",
   },
   {
     name: "Tokio",       country: "Japón",
-    img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🌸 Urbano",      gradient: "from-red-900/80",
   },
   {
     name: "Nueva York",  country: "EE.UU.",
-    img: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1496442226666-8d4d0e62e6e9?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🗽 Icónico",     gradient: "from-blue-900/80",
   },
   {
     name: "Bali",        country: "Indonesia",
-    img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1537996194471-e657df975ab4?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🌴 Paraíso",     gradient: "from-green-900/80",
   },
   {
     name: "Dubái",       country: "EAU",
-    img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1512453979798-5ea266f8880c?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "✨ Lujo",         gradient: "from-yellow-900/80",
   },
   {
     name: "Santorini",   country: "Grecia",
-    img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🌊 Mediterráneo", gradient: "from-sky-900/80",
   },
   {
     name: "Cartagena",   country: "Colombia",
-    img: "https://images.unsplash.com/photo-1583531352515-8884f6c63dc7?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1583531352515-8884f6c63dc7?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🏰 Colonial",    gradient: "from-orange-900/80",
   },
   {
     name: "Machu Picchu", country: "Perú",
-    img: "https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1526392060635-9d6019884377?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🧗 Aventura",    gradient: "from-emerald-900/80",
   },
   {
     name: "Londres",     country: "Reino Unido",
-    img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1513635269975-59663e0ac1ad?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "☂️ Clásico",     gradient: "from-slate-900/80",
   },
   {
     name: "Marrakech",   country: "Marruecos",
-    img: "https://images.unsplash.com/photo-1553603227-2358aabe821e?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1553603227-2358aabe821e?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🕌 Exótico",     gradient: "from-rose-900/80",
   },
   {
     name: "Bangkok",     country: "Tailandia",
-    img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=900&q=80",
+    img: "https://images.unsplash.com/photo-1508009603885-50cf7c579365?auto=format&fit=crop&w=900&q=80&fm=jpg",
     tag: "🛕 Místico",     gradient: "from-violet-900/80",
   },
 ];
@@ -122,6 +122,7 @@ export function Destinations({ locale }: { locale?: string }) {
                 src={d.img}
                 alt={`${d.name}, ${d.country}`}
                 loading="lazy"
+                referrerPolicy="no-referrer"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-115 transition-transform duration-700"
                 style={{ transitionTimingFunction: "cubic-bezier(0.19,1,0.22,1)" }}
               />
