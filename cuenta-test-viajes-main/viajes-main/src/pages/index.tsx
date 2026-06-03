@@ -1,4 +1,4 @@
-// src/pages/index.tsx
+// src/pages/index.tsx — INTOCABLE la lógica funcional; solo mejoras visuales en landing
 import React, { useState } from "react";
 import Head from "next/head";
 import type { TripFormData, ItineraryData, Locale } from "@/lib/types";
@@ -10,6 +10,7 @@ import { Footer } from "@/components/landing/sections/Footer";
 import { Destinations } from "@/components/landing/destinations/Destinations";
 import { ItineraryGenerator } from "@/components/landing/itinerary/ItineraryGenerator";
 import { Blog } from "@/components/landing/blog/Blog";
+import { Pricing } from "@/components/landing/sections/Pricing";
 import {
   BannerPublicidadTop,
   BannerPublicidadFooter,
@@ -81,6 +82,7 @@ export default function Home() {
             </div>
           )}
           <Blog locale={locale} />
+          <Pricing locale={locale} />
           <BannerPublicidadFooter />
           <Footer locale={locale} />
         </div>
