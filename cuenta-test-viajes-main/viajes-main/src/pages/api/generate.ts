@@ -1,6 +1,6 @@
 // src/pages/api/generate.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { buildDaysBatchPrompt, buildMetadataPrompt, buildRestaurantsPrompt, buildEventsPrompt } from "@/lib/prompt";
+import { buildDaysBatchPrompt, buildMetadataPrompt } from "@/lib/prompt";
 import type { TripFormData, ItineraryData, Hotel, Event } from "@/lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -42,18 +42,7 @@ function buildHotelLinks(form: TripFormData): Hotel[] {
   ];
 }
 
-// ── Helpers ───────────────────────────────────────────────────
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Groq devuelve en el mensaje 429 cuántos segundos esperar.
-// Ej: "Please try again in 40.38s"
-function parseRetryAfterMs(errBody: string): number {
-  const m = /try again in ([\d.]+)s/i.exec(errBody);
-  if (m) return Math.ceil(parseFloat(m[1]) * 1000) + 1500; // +1.5s de margen
-  return 62000; // fallback: 62s (seguro para TPM de 1 minuto)
-}
-
-// ── Groq con retry automático ante 429 ───────────────────────
+// ── Groq ──────────────────────────────────────────────────────
 async function callGroq(prompt: string, maxTokens: number, temperature = 0.7): Promise<string> {
   const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -384,27 +373,21 @@ function normalizeDayTimes(itinerary: ItineraryData, dayStart: string, dayEnd: s
   }
 }
 
-// ── Genera días de forma SECUENCIAL de 1 en 1 ───────────────
-// 1 día por llamada (~3500 tokens) + pausa de 3s entre días.
-// 5 días: 5 × ~3500 = 17500 tokens pero escalonados 1/min → OK.
+// ── Genera días de forma SECUENCIAL en lotes de 3 ────────────
+// Secuencial para respetar el límite de 6000 TPM del free tier de Groq.
+// Cada lote pide máximo 3 días con formato compacto (~4500 tokens de salida).
 async function generateDaysSequential(form: TripFormData, totalDays: number): Promise<ItineraryData["days"]> {
-  const BATCH_SIZE = 1;
-  const INTER_BATCH_DELAY_MS = 3000; // 3s entre días — suficiente para no saturar TPM
+  const BATCH_SIZE = 3; // 3 días * ~7 items * ~150 tokens/item = ~3150 tokens por lote
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDays: any[] = [];
 
   for (let fromDay = 1; fromDay <= totalDays; fromDay += BATCH_SIZE) {
-    if (fromDay > 1) {
-      console.log(`[days] waiting ${INTER_BATCH_DELAY_MS}ms before batch ${fromDay}...`);
-      await sleep(INTER_BATCH_DELAY_MS);
-    }
-
     const toDay = Math.min(fromDay + BATCH_SIZE - 1, totalDays);
     const prompt = buildDaysBatchPrompt(form, fromDay, toDay);
 
     let raw: string;
     try {
-      raw = await callGroq(prompt, 4500, 0.7);
+      raw = await callGroq(prompt, 7500, 0.7);
     } catch (err) {
       console.error(`[days batch ${fromDay}-${toDay}] Groq call failed:`, err);
       continue;
@@ -419,8 +402,8 @@ async function generateDaysSequential(form: TripFormData, totalDays: number): Pr
       console.warn(`[days batch ${fromDay}-${toDay}] JSON parse failed, attempting repair`);
       try {
         const fix = await callGroq(
-          `Fix this JSON array. Return ONLY the valid JSON array, nothing else:\n\n${jsonStr.slice(0, 4000)}`,
-          4500, 0.1
+          `Fix this JSON array. Return ONLY the valid JSON array, nothing else:\n\n${jsonStr.slice(0, 6000)}`,
+          7500, 0.1
         );
         arr = JSON.parse(extractJSONArray(fix));
       } catch (err2) {
@@ -457,44 +440,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ── PASO 1: Días (secuencial, respeta TPM) ────────────────
     const days = await generateDaysSequential(form, totalDays);
 
-    // ── PASO 2: Metadata header + restaurantes + eventos en paralelo ─
-    // Cada prompt ~800 tokens. Se lanzan junto con las APIs externas
-    // para no añadir tiempo extra. Si hay 429, cada uno devuelve vacío.
-    const [metaRes, restosRes, eventsGroqRes, wikidataRes, weatherRes, tmRes, ebRes] =
-      await Promise.allSettled([
-        callGroq(buildMetadataPrompt(form),    1200, 0.5),
-        callGroq(buildRestaurantsPrompt(form), 2000, 0.6),
-        callGroq(buildEventsPrompt(form),      1500, 0.6),
-        fetchWikidataAttractions(form.city),
-        fetchWeather(form.city, form.country),
-        fetchTicketmaster(form.city, form.startDate, form.endDate),
-        fetchEventbrite(form.city, form.startDate, form.endDate),
-      ]);
-
+    // ── PASO 2: Metadata (secuencial tras los días) ───────────
     let metadata: Record<string, unknown> = {};
-    if (metaRes.status === "fulfilled") {
-      try { metadata = JSON.parse(extractJSON(metaRes.value)); }
-      catch (err) { console.error("[metadata] parse failed:", err); }
-    } else { console.error("[metadata] failed:", metaRes.reason); }
+    try {
+      const metaRaw = await callGroq(buildMetadataPrompt(form), 3000, 0.6);
+      const metaStr = extractJSON(metaRaw);
+      metadata = JSON.parse(metaStr);
+    } catch (err) {
+      console.error("[metadata] failed:", err);
+    }
 
-    let groqRestaurants: ItineraryData["restaurants"] = [];
-    if (restosRes.status === "fulfilled") {
-      try {
-        const arr = JSON.parse(extractJSONArray(restosRes.value));
-        if (Array.isArray(arr)) groqRestaurants = arr;
-      } catch (err) { console.error("[restaurants] parse failed:", err); }
-    } else { console.error("[restaurants] failed:", restosRes.reason); }
-
-    let groqEvents: Event[] = [];
-    if (eventsGroqRes.status === "fulfilled") {
-      try {
-        const arr = JSON.parse(extractJSONArray(eventsGroqRes.value));
-        if (Array.isArray(arr)) groqEvents = arr;
-      } catch (err) { console.error("[events-groq] parse failed:", err); }
-    } else { console.error("[events-groq] failed:", eventsGroqRes.reason); }
-
-    // ── PASO 3: Eventos tradicionales (Groq separado, no bloquea) ──
+    // ── PASO 3: Eventos tradicionales (secuencial) ────────────
     const tradEvents = await fetchTraditionalEvents(form);
+
+    // ── PASO 4: APIs externas en paralelo (no son Groq, no afectan TPM) ──
+    const [wikidataRes, weatherRes, tmRes, ebRes] = await Promise.allSettled([
+      fetchWikidataAttractions(form.city),
+      fetchWeather(form.city, form.country),
+      fetchTicketmaster(form.city, form.startDate, form.endDate),
+      fetchEventbrite(form.city, form.startDate, form.endDate),
+    ]);
 
     // ── Ensamblar itinerario ───────────────────────────────────
     const itinerary: ItineraryData = {
@@ -505,8 +470,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       weather:               (metadata.weather             as ItineraryData["weather"]) ?? { maxTemp: 25, minTemp: 15, description: "" },
       estimatedBudgetPerDay: metadata.estimatedBudgetPerDay as string ?? "",
       days,
-      restaurants:           groqRestaurants,
-      events:                groqEvents,
+      restaurants:           (metadata.restaurants         as ItineraryData["restaurants"]) ?? [],
+      events:                (metadata.events              as Event[]) ?? [],
       alerts:                (metadata.alerts              as ItineraryData["alerts"]) ?? [],
       hotels:                buildHotelLinks(form),
     };
@@ -586,4 +551,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-export const config = { api: { responseLimit: "10mb", bodyParser: { sizeLimit: "10mb" } }, maxDuration: 60 };
+export const config = { api: { responseLimit: "10mb" } };
