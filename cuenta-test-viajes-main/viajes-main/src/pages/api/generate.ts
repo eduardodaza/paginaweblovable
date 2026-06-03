@@ -1,6 +1,6 @@
 // src/pages/api/generate.ts
 import type { NextApiRequest, NextApiResponse } from "next";
-import { buildDaysBatchPrompt, buildMetadataPrompt } from "@/lib/prompt";
+import { buildDaysBatchPrompt, buildMetadataPrompt, buildRestaurantsPrompt, buildEventsPrompt } from "@/lib/prompt";
 import type { TripFormData, ItineraryData, Hotel, Event } from "@/lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -457,26 +457,44 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ── PASO 1: Días (secuencial, respeta TPM) ────────────────
     const days = await generateDaysSequential(form, totalDays);
 
-    // ── PASO 2: Metadata ─────────────────────────────────────
+    // ── PASO 2: Metadata header + restaurantes + eventos en paralelo ─
+    // Cada prompt ~800 tokens. Se lanzan junto con las APIs externas
+    // para no añadir tiempo extra. Si hay 429, cada uno devuelve vacío.
+    const [metaRes, restosRes, eventsGroqRes, wikidataRes, weatherRes, tmRes, ebRes] =
+      await Promise.allSettled([
+        callGroq(buildMetadataPrompt(form),    1200, 0.5),
+        callGroq(buildRestaurantsPrompt(form), 2000, 0.6),
+        callGroq(buildEventsPrompt(form),      1500, 0.6),
+        fetchWikidataAttractions(form.city),
+        fetchWeather(form.city, form.country),
+        fetchTicketmaster(form.city, form.startDate, form.endDate),
+        fetchEventbrite(form.city, form.startDate, form.endDate),
+      ]);
+
     let metadata: Record<string, unknown> = {};
-    try {
-      const metaRaw = await callGroq(buildMetadataPrompt(form), 3000, 0.6);
-      const metaStr = extractJSON(metaRaw);
-      metadata = JSON.parse(metaStr);
-    } catch (err) {
-      console.error("[metadata] failed:", err);
-    }
+    if (metaRes.status === "fulfilled") {
+      try { metadata = JSON.parse(extractJSON(metaRes.value)); }
+      catch (err) { console.error("[metadata] parse failed:", err); }
+    } else { console.error("[metadata] failed:", metaRes.reason); }
 
-    // ── PASO 3: Eventos tradicionales ────────────────────────
+    let groqRestaurants: ItineraryData["restaurants"] = [];
+    if (restosRes.status === "fulfilled") {
+      try {
+        const arr = JSON.parse(extractJSONArray(restosRes.value));
+        if (Array.isArray(arr)) groqRestaurants = arr;
+      } catch (err) { console.error("[restaurants] parse failed:", err); }
+    } else { console.error("[restaurants] failed:", restosRes.reason); }
+
+    let groqEvents: Event[] = [];
+    if (eventsGroqRes.status === "fulfilled") {
+      try {
+        const arr = JSON.parse(extractJSONArray(eventsGroqRes.value));
+        if (Array.isArray(arr)) groqEvents = arr;
+      } catch (err) { console.error("[events-groq] parse failed:", err); }
+    } else { console.error("[events-groq] failed:", eventsGroqRes.reason); }
+
+    // ── PASO 3: Eventos tradicionales (Groq separado, no bloquea) ──
     const tradEvents = await fetchTraditionalEvents(form);
-
-    // ── PASO 4: APIs externas en paralelo (no son Groq, no afectan TPM) ──
-    const [wikidataRes, weatherRes, tmRes, ebRes] = await Promise.allSettled([
-      fetchWikidataAttractions(form.city),
-      fetchWeather(form.city, form.country),
-      fetchTicketmaster(form.city, form.startDate, form.endDate),
-      fetchEventbrite(form.city, form.startDate, form.endDate),
-    ]);
 
     // ── Ensamblar itinerario ───────────────────────────────────
     const itinerary: ItineraryData = {
@@ -487,8 +505,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       weather:               (metadata.weather             as ItineraryData["weather"]) ?? { maxTemp: 25, minTemp: 15, description: "" },
       estimatedBudgetPerDay: metadata.estimatedBudgetPerDay as string ?? "",
       days,
-      restaurants:           (metadata.restaurants         as ItineraryData["restaurants"]) ?? [],
-      events:                (metadata.events              as Event[]) ?? [],
+      restaurants:           groqRestaurants,
+      events:                groqEvents,
       alerts:                (metadata.alerts              as ItineraryData["alerts"]) ?? [],
       hotels:                buildHotelLinks(form),
     };
