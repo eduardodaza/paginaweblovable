@@ -243,8 +243,8 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
                   <input
                     type="text" value={city}
                     onChange={(e) => { setCity(e.target.value); setShowCitySuggest(true); }}
-                    onFocus={() => setShowCitySuggest(true)}
-                    onBlur={() => setTimeout(() => setShowCitySuggest(false), 200)}
+                    onFocus={(e) => { setShowCitySuggest(true); e.currentTarget.style.borderColor = "hsl(12 85% 65%)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                    onBlur={(e) => { setTimeout(() => setShowCitySuggest(false), 200); e.currentTarget.style.borderColor = errors.city ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
                     autoComplete="off"
                     placeholder={es ? "Ej. Barcelona" : "e.g. Kyoto"}
                     className="w-full text-xl font-bold bg-transparent outline-none transition-all py-3 px-4 rounded-2xl placeholder:font-normal"
@@ -254,8 +254,6 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
                       background: "rgba(255,255,255,0.06)",
                       fontSize: 18,
                     }}
-                    onFocus={(e) => { e.currentTarget.style.borderColor = "hsl(12 85% 65%)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
-                    onBlur={(e) => { e.currentTarget.style.borderColor = errors.city ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
                   />
                   {showCitySuggest && citySuggestions.length > 0 && (
                     <ul className="absolute left-0 right-0 top-full z-30 mt-1 overflow-auto text-sm rounded-2xl border"
