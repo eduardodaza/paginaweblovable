@@ -107,37 +107,15 @@ RULES (all mandatory):
 9. description: 1 sentence only (keep tokens short). tip: max 10 words.
 
 Respond ONLY with a valid JSON array (no markdown, no backticks, no explanation):
-[
-  {
-    "dayNum": ${fromDay},
-    "theme": "day theme",
-    "date": "${dayLabels[0]}",
-    "zone": "primary sector",
-    "items": [
-      {"id":"d${fromDay}i1","time":"${dayStart}","type":"sight","name":"Real Place","description":"One sentence.","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"Book online","alternatives":[{"name":"Alt Place 1","description":"One sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.5","tip":"Why go"},{"name":"Alt Place 2","description":"One sentence.","type":"sight","duration":"1h","transport":"metro","transportTime":"8 min","price":"$$","rating":"4.4","tip":"Why go"}]},
-      {"id":"d${fromDay}i2","time":"10:30","type":"food","name":"Real Café","description":"One sentence.","duration":"45min","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Try croissant","alternatives":[{"name":"Alt Café","description":"One sentence.","type":"food","duration":"45min","transport":"walking","transportTime":"3 min","price":"$","rating":"4.2","tip":"Why go"}]},
-      {"id":"d${fromDay}i3","time":"12:00","type":"sight","name":"Real Landmark","description":"One sentence.","duration":"2h","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.7","tip":"Arrive early","alternatives":[{"name":"Alt Landmark","description":"One sentence.","type":"sight","duration":"1h 30min","transport":"walking","transportTime":"12 min","price":"$$","rating":"4.5","tip":"Why go"}]},
-      {"id":"d${fromDay}i4","time":"14:30","type":"food","name":"Real Lunch","description":"One sentence.","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.6","tip":"Signature dish","alternatives":[{"name":"Alt Lunch","description":"One sentence.","type":"food","duration":"1h","transport":"walking","transportTime":"7 min","price":"$$","rating":"4.4","tip":"Why go"}]},
-      {"id":"d${fromDay}i5","time":"16:30","type":"sight","name":"Real Afternoon","description":"One sentence.","duration":"1h 30min","transport":"walking","transportTime":"8 min","price":"$","rating":"4.5","tip":"Tip","alternatives":[{"name":"Alt Afternoon","description":"One sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Why go"}]},
-      {"id":"d${fromDay}i6","time":"19:00","type":"food","name":"Real Dinner","description":"One sentence.","duration":"1h 30min","transport":"taxi","transportTime":"10 min","price":"$$$","rating":"4.7","tip":"Reserve ahead","alternatives":[{"name":"Alt Dinner","description":"One sentence.","type":"food","duration":"1h 30min","transport":"walking","transportTime":"10 min","price":"$$","rating":"4.5","tip":"Why go"}]},
-      {"id":"d${fromDay}i7","time":"21:30","type":"night","name":"Real Bar/Night","description":"One sentence.","duration":"1h 30min","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"Tip","alternatives":[{"name":"Alt Night","description":"One sentence.","type":"night","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.3","tip":"Why go"}]}
-    ]
-  }${batchCount > 1 ? `,
-  {
-    "dayNum": ${fromDay + 1},
-    "theme": "theme for day ${fromDay + 1}",
-    "date": "${dayLabels[1] ?? ""}",
-    "zone": "DIFFERENT sector from day ${fromDay}",
-    "items": [ /* same 7-10 items structure, different places and zone */ ]
-  }` : ""}${batchCount > 2 ? `,
-  {
-    "dayNum": ${fromDay + 2},
-    "theme": "theme for day ${fromDay + 2}",
-    "date": "${dayLabels[2] ?? ""}",
-    "zone": "DIFFERENT sector from days ${fromDay} and ${fromDay + 1}",
-    "items": [ /* same 7-10 items structure, different places and zone */ ]
-  }` : ""}
-]`;
+[{"dayNum":${fromDay},"theme":"theme","date":"${dayLabels[0]}","zone":"sector","items":[
+{"id":"d${fromDay}i1","time":"${dayStart}","type":"sight","name":"Place","description":"1 sentence.","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"Tip","alternatives":[{"name":"Alt1","description":"1 sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.5","tip":"Why"},{"name":"Alt2","description":"1 sentence.","type":"sight","duration":"1h","transport":"metro","transportTime":"8 min","price":"$$","rating":"4.4","tip":"Why"}]},
+{"id":"d${fromDay}i2","time":"10:30","type":"food","name":"Café","description":"1 sentence.","duration":"45min","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"45min","transport":"walking","transportTime":"3 min","price":"$","rating":"4.2","tip":"Why"}]},
+{"id":"d${fromDay}i3","time":"12:30","type":"sight","name":"Landmark","description":"1 sentence.","duration":"2h","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.7","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"sight","duration":"1h 30min","transport":"walking","transportTime":"12 min","price":"$$","rating":"4.5","tip":"Why"}]},
+{"id":"d${fromDay}i4","time":"14:30","type":"food","name":"Lunch","description":"1 sentence.","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.6","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"1h","transport":"walking","transportTime":"7 min","price":"$$","rating":"4.4","tip":"Why"}]},
+{"id":"d${fromDay}i5","time":"16:30","type":"sight","name":"Afternoon","description":"1 sentence.","duration":"1h 30min","transport":"walking","transportTime":"8 min","price":"$","rating":"4.5","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Why"}]},
+{"id":"d${fromDay}i6","time":"19:00","type":"food","name":"Dinner","description":"1 sentence.","duration":"1h 30min","transport":"taxi","transportTime":"10 min","price":"$$$","rating":"4.7","tip":"Reserve","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"1h 30min","transport":"walking","transportTime":"10 min","price":"$$","rating":"4.5","tip":"Why"}]},
+{"id":"d${fromDay}i7","time":"21:30","type":"night","name":"Bar","description":"1 sentence.","duration":"1h 30min","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"night","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.3","tip":"Why"}]}
+]}]`;
 }
 
 // ── Prompt para metadata: restaurants + events + header ───────
