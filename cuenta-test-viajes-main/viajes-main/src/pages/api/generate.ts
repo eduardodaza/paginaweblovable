@@ -42,25 +42,53 @@ function buildHotelLinks(form: TripFormData): Hotel[] {
   ];
 }
 
-// ── Groq ──────────────────────────────────────────────────────
-async function callGroq(prompt: string, maxTokens: number, temperature = 0.7): Promise<string> {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
-    body: JSON.stringify({
-      model: "llama-3.3-70b-versatile",
-      max_tokens: maxTokens, temperature,
-      messages: [{ role: "user", content: prompt }],
-    }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
+// ── Helpers ───────────────────────────────────────────────────
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Groq devuelve en el mensaje 429 cuántos segundos esperar.
+// Ej: "Please try again in 40.38s"
+function parseRetryAfterMs(errBody: string): number {
+  const m = /try again in ([\d.]+)s/i.exec(errBody);
+  if (m) return Math.ceil(parseFloat(m[1]) * 1000) + 1500; // +1.5s de margen
+  return 62000; // fallback: 62s (seguro para TPM de 1 minuto)
+}
+
+// ── Groq con retry automático ante 429 ───────────────────────
+async function callGroq(prompt: string, maxTokens: number, temperature = 0.7, retries = 3): Promise<string> {
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: "llama-3.3-70b-versatile",
+        max_tokens: maxTokens, temperature,
+        messages: [{ role: "user", content: prompt }],
+      }),
+    });
+
+    if (res.status === 429) {
+      const errJson = await res.json().catch(() => ({}));
+      const errStr = JSON.stringify(errJson);
+      const waitMs = parseRetryAfterMs(errStr);
+      console.warn(`[groq] 429 rate limit, waiting ${waitMs}ms before retry ${attempt + 1}/${retries}...`);
+      if (attempt < retries) {
+        await sleep(waitMs);
+        continue;
+      }
+      throw new Error(`Groq error 429 (retries exhausted): ${errStr}`);
+    }
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
+    }
+
+    const data = await res.json();
+    const text: string = data?.choices?.[0]?.message?.content ?? "";
+    if (!text) throw new Error("Empty Groq response");
+    return text;
   }
-  const data = await res.json();
-  const text: string = data?.choices?.[0]?.message?.content ?? "";
-  if (!text) throw new Error("Empty Groq response");
-  return text;
+  throw new Error("callGroq: exceeded retries");
 }
 
 // ── Groq: traditional / recurring / cultural events ───────────
@@ -373,15 +401,21 @@ function normalizeDayTimes(itinerary: ItineraryData, dayStart: string, dayEnd: s
   }
 }
 
-// ── Genera días de forma SECUENCIAL en lotes de 3 ────────────
-// Secuencial para respetar el límite de 6000 TPM del free tier de Groq.
-// Cada lote pide máximo 3 días con formato compacto (~4500 tokens de salida).
+// ── Genera días de forma SECUENCIAL en lotes de 2 ────────────
+// Lotes de 2 días (~5000 tokens) + pausa entre lotes para no
+// agotar el límite de 12000 TPM del plan gratuito de Groq.
 async function generateDaysSequential(form: TripFormData, totalDays: number): Promise<ItineraryData["days"]> {
-  const BATCH_SIZE = 3; // 3 días * ~7 items * ~150 tokens/item = ~3150 tokens por lote
+  const BATCH_SIZE = 2;
+  const INTER_BATCH_DELAY_MS = 8000; // 8s entre lotes para respetar TPM sin exceder timeout Vercel
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDays: any[] = [];
 
   for (let fromDay = 1; fromDay <= totalDays; fromDay += BATCH_SIZE) {
+    if (fromDay > 1) {
+      console.log(`[days] waiting ${INTER_BATCH_DELAY_MS}ms before batch ${fromDay}...`);
+      await sleep(INTER_BATCH_DELAY_MS);
+    }
+
     const toDay = Math.min(fromDay + BATCH_SIZE - 1, totalDays);
     const prompt = buildDaysBatchPrompt(form, fromDay, toDay);
 
@@ -440,7 +474,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ── PASO 1: Días (secuencial, respeta TPM) ────────────────
     const days = await generateDaysSequential(form, totalDays);
 
-    // ── PASO 2: Metadata (secuencial tras los días) ───────────
+    // ── PASO 2: Metadata ─────────────────────────────────────
     let metadata: Record<string, unknown> = {};
     try {
       const metaRaw = await callGroq(buildMetadataPrompt(form), 3000, 0.6);
@@ -450,7 +484,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       console.error("[metadata] failed:", err);
     }
 
-    // ── PASO 3: Eventos tradicionales (secuencial) ────────────
+    // ── PASO 3: Eventos tradicionales ────────────────────────
     const tradEvents = await fetchTraditionalEvents(form);
 
     // ── PASO 4: APIs externas en paralelo (no son Groq, no afectan TPM) ──
@@ -551,4 +585,4 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 }
 
-export const config = { api: { responseLimit: "10mb" } };
+export const config = { api: { responseLimit: "10mb", bodyParser: { sizeLimit: "10mb" } }, maxDuration: 60 };
