@@ -107,48 +107,81 @@ RULES (all mandatory):
 9. description: 1 sentence only (keep tokens short). tip: max 10 words.
 
 Respond ONLY with a valid JSON array (no markdown, no backticks, no explanation):
-[{"dayNum":${fromDay},"theme":"theme","date":"${dayLabels[0]}","zone":"sector","items":[
-{"id":"d${fromDay}i1","time":"${dayStart}","type":"sight","name":"Place","description":"1 sentence.","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"Tip","alternatives":[{"name":"Alt1","description":"1 sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.5","tip":"Why"},{"name":"Alt2","description":"1 sentence.","type":"sight","duration":"1h","transport":"metro","transportTime":"8 min","price":"$$","rating":"4.4","tip":"Why"}]},
-{"id":"d${fromDay}i2","time":"10:30","type":"food","name":"Café","description":"1 sentence.","duration":"45min","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"45min","transport":"walking","transportTime":"3 min","price":"$","rating":"4.2","tip":"Why"}]},
-{"id":"d${fromDay}i3","time":"12:30","type":"sight","name":"Landmark","description":"1 sentence.","duration":"2h","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.7","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"sight","duration":"1h 30min","transport":"walking","transportTime":"12 min","price":"$$","rating":"4.5","tip":"Why"}]},
-{"id":"d${fromDay}i4","time":"14:30","type":"food","name":"Lunch","description":"1 sentence.","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.6","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"1h","transport":"walking","transportTime":"7 min","price":"$$","rating":"4.4","tip":"Why"}]},
-{"id":"d${fromDay}i5","time":"16:30","type":"sight","name":"Afternoon","description":"1 sentence.","duration":"1h 30min","transport":"walking","transportTime":"8 min","price":"$","rating":"4.5","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Why"}]},
-{"id":"d${fromDay}i6","time":"19:00","type":"food","name":"Dinner","description":"1 sentence.","duration":"1h 30min","transport":"taxi","transportTime":"10 min","price":"$$$","rating":"4.7","tip":"Reserve","alternatives":[{"name":"Alt","description":"1 sentence.","type":"food","duration":"1h 30min","transport":"walking","transportTime":"10 min","price":"$$","rating":"4.5","tip":"Why"}]},
-{"id":"d${fromDay}i7","time":"21:30","type":"night","name":"Bar","description":"1 sentence.","duration":"1h 30min","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"Tip","alternatives":[{"name":"Alt","description":"1 sentence.","type":"night","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.3","tip":"Why"}]}
-]}]`;
+[
+  {
+    "dayNum": ${fromDay},
+    "theme": "day theme",
+    "date": "${dayLabels[0]}",
+    "zone": "primary sector",
+    "items": [
+      {"id":"d${fromDay}i1","time":"${dayStart}","type":"sight","name":"Real Place","description":"One sentence.","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"Book online","alternatives":[{"name":"Alt Place 1","description":"One sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.5","tip":"Why go"},{"name":"Alt Place 2","description":"One sentence.","type":"sight","duration":"1h","transport":"metro","transportTime":"8 min","price":"$$","rating":"4.4","tip":"Why go"}]},
+      {"id":"d${fromDay}i2","time":"10:30","type":"food","name":"Real Café","description":"One sentence.","duration":"45min","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Try croissant","alternatives":[{"name":"Alt Café","description":"One sentence.","type":"food","duration":"45min","transport":"walking","transportTime":"3 min","price":"$","rating":"4.2","tip":"Why go"}]},
+      {"id":"d${fromDay}i3","time":"12:00","type":"sight","name":"Real Landmark","description":"One sentence.","duration":"2h","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.7","tip":"Arrive early","alternatives":[{"name":"Alt Landmark","description":"One sentence.","type":"sight","duration":"1h 30min","transport":"walking","transportTime":"12 min","price":"$$","rating":"4.5","tip":"Why go"}]},
+      {"id":"d${fromDay}i4","time":"14:30","type":"food","name":"Real Lunch","description":"One sentence.","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.6","tip":"Signature dish","alternatives":[{"name":"Alt Lunch","description":"One sentence.","type":"food","duration":"1h","transport":"walking","transportTime":"7 min","price":"$$","rating":"4.4","tip":"Why go"}]},
+      {"id":"d${fromDay}i5","time":"16:30","type":"sight","name":"Real Afternoon","description":"One sentence.","duration":"1h 30min","transport":"walking","transportTime":"8 min","price":"$","rating":"4.5","tip":"Tip","alternatives":[{"name":"Alt Afternoon","description":"One sentence.","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$","rating":"4.3","tip":"Why go"}]},
+      {"id":"d${fromDay}i6","time":"19:00","type":"food","name":"Real Dinner","description":"One sentence.","duration":"1h 30min","transport":"taxi","transportTime":"10 min","price":"$$$","rating":"4.7","tip":"Reserve ahead","alternatives":[{"name":"Alt Dinner","description":"One sentence.","type":"food","duration":"1h 30min","transport":"walking","transportTime":"10 min","price":"$$","rating":"4.5","tip":"Why go"}]},
+      {"id":"d${fromDay}i7","time":"21:30","type":"night","name":"Real Bar/Night","description":"One sentence.","duration":"1h 30min","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"Tip","alternatives":[{"name":"Alt Night","description":"One sentence.","type":"night","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.3","tip":"Why go"}]}
+    ]
+  }${batchCount > 1 ? `,
+  {
+    "dayNum": ${fromDay + 1},
+    "theme": "theme for day ${fromDay + 1}",
+    "date": "${dayLabels[1] ?? ""}",
+    "zone": "DIFFERENT sector from day ${fromDay}",
+    "items": [ /* same 7-10 items structure, different places and zone */ ]
+  }` : ""}${batchCount > 2 ? `,
+  {
+    "dayNum": ${fromDay + 2},
+    "theme": "theme for day ${fromDay + 2}",
+    "date": "${dayLabels[2] ?? ""}",
+    "zone": "DIFFERENT sector from days ${fromDay} and ${fromDay + 1}",
+    "items": [ /* same 7-10 items structure, different places and zone */ ]
+  }` : ""}
+]`;
 }
 
-// ── Prompts separados para metadata (cada uno ~800 tokens) ───
+// ── Prompt para metadata: restaurants + events + header ───────
 export function buildMetadataPrompt(form: TripFormData): string {
   const ctx = buildSharedContext(form);
-  const { totalDays, lang, startMonth, startDay, endDay, travelerLine, budgetLine } = ctx;
-  return `Local expert for ${form.city}, ${form.country}. Generate in ${lang}.
-TRIP: ${totalDays} days (${startMonth} ${startDay}–${endDay}) | Budget: ${form.budget} | ${travelerLine} | ${budgetLine}
-Respond ONLY valid JSON, no markdown:
-{"city":"${form.city}","country":"${form.country}","tagline":"inspiring phrase max 10 words","summary":"2-sentence overview","weather":{"maxTemp":25,"minTemp":15,"description":"weather for ${startMonth}"},"estimatedBudgetPerDay":"realistic range","alerts":[{"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"},{"level":"bajo","zone":"zone2","description":"note2","tip":"tip2"}]}
-RULES: weather must match ${startMonth} in ${form.city}. alerts: 2-4 real safety notes.`;
-}
-
-export function buildRestaurantsPrompt(form: TripFormData): string {
-  const ctx = buildSharedContext(form);
-  const { totalDays, lang, startMonth, travelerLine, budgetLine } = ctx;
+  const { sd, ed, totalDays, lang, dayStart, dayEnd, startMonth, startDay, endDay,
+          travelerLine, budgetLine } = ctx;
+  const locale = ctx.locale;
+  const dateStr    = sd.toLocaleDateString(locale === "es" ? "es-ES" : locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
+  const dateEndStr = ed.toLocaleDateString(locale === "es" ? "es-ES" : locale, { weekday: "long", year: "numeric", month: "long", day: "numeric" });
   const minResto = Math.max(9, totalDays * 3);
   const maxResto = Math.min(18, totalDays * 3 + 3);
-  return `Local food expert for ${form.city}, ${form.country}. Generate in ${lang}.
-TRIP: ${totalDays} days (${startMonth}) | Budget: ${form.budget} | ${travelerLine} | ${budgetLine}
-Respond ONLY a valid JSON array, no markdown:
-[{"name":"Real Restaurant Name","type":"cuisine type","priceRange":"$$","rating":"4.3","specialty":"signature dish","zone":"neighborhood","source":"TripAdvisor","address":"real address or empty","dayHint":1,"mealHint":"breakfast"}]
-RULES: exactly ${minResto} to ${maxResto} entries. dayHint 1..${totalDays}. Cover breakfast+lunch+dinner every day. Budget-consistent. ALL must be real restaurants in ${form.city}.`;
+
+  return `You are a local expert for ${form.city}, ${form.country}. Generate trip metadata in ${lang}.
+
+TRIP: ${dateStr} to ${dateEndStr} (${totalDays} days, ${startMonth} ${startDay}–${endDay}) | ${form.travelers} (${form.travelerType}) | Budget: ${form.budget}
+Traveler: ${travelerLine}
+Budget: ${budgetLine}
+Day window: ${dayStart}–${dayEnd}
+
+Respond ONLY with a valid JSON object (no markdown, no backticks):
+{
+  "city": "${form.city}",
+  "country": "${form.country}",
+  "tagline": "inspiring phrase max 10 words",
+  "summary": "2-sentence overview matching traveler + budget",
+  "weather": {"maxTemp": 25, "minTemp": 15, "description": "weather for ${startMonth}"},
+  "estimatedBudgetPerDay": "realistic range in local currency",
+  "restaurants": [
+    {"name":"Real Restaurant","type":"cuisine","priceRange":"$$","rating":"4.3","specialty":"dish","zone":"neighborhood","source":"TripAdvisor","address":"address if known","dayHint":1,"mealHint":"lunch"}
+  ],
+  "events": [
+    {"name":"Real Event","type":"festival","when":"YYYY-MM-DD or recurrence","description":"1 sentence","price":"Free or price","venue":"Real Venue","ticketUrl":"https://official-url.com or empty string","source":"local"}
+  ],
+  "alerts": [
+    {"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"}
+  ]
 }
 
-export function buildEventsPrompt(form: TripFormData): string {
-  const ctx = buildSharedContext(form);
-  const { totalDays, lang, startMonth, startDay, endDay } = ctx;
-  return `Local events expert for ${form.city}, ${form.country}. Generate in ${lang}.
-TRIP: ${totalDays} days (${startMonth} ${startDay}–${endDay}) in ${form.city}.
-Respond ONLY a valid JSON array, no markdown:
-[{"name":"Real Event Name","type":"festival","when":"YYYY-MM-DD","description":"1 sentence","price":"Free or price in local currency","venue":"Real Venue Name","ticketUrl":"https://official-ticket-site.com or empty string","source":"local"}]
-RULES: minimum 6 entries. Types: festival, concert, sport, exhibition, permanent. Include: local festivals for ${startMonth}, concerts, sports matches, museum exhibits. For paid events (concerts, sport, shows) set ticketUrl to the REAL official ticket URL (ticketmaster.com, eventim.com, official venue website). Free events: ticketUrl="". ALL must be real events in ${form.city} around ${startMonth}.`;
+CONSTRAINTS:
+- restaurants: exactly ${minResto}–${maxResto} real entries. dayHint 1..${totalDays}. At least 3/day (breakfast+lunch+dinner). Budget-consistent prices.
+- events: ≥4 real entries. Include festivals/traditions in ${form.city} for ${startMonth}. Include iconic recurring shows if nothing special. For paid events (concerts, sports, shows) set ticketUrl to the real official ticket URL. Free events: ticketUrl="".
+- alerts: 2–4 entries.
+- All must be REAL places/events in ${form.city}, ${form.country}.`;
 }
 
 // ── Legacy single-call (kept, not used in main flow) ─────────
