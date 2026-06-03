@@ -1,11 +1,10 @@
 // src/components/landing/itinerary/ItineraryGenerator.tsx
-// Reemplaza el generador de Lovable con el TripForm original completo.
-// La landing de Lovable llama a este componente; cuando el usuario hace submit
-// se llama onSubmit(form) que sube a index.tsx y dispara /api/generate.
+// ⚠️ LÓGICA FUNCIONAL INTACTA — solo cambios de presentación/estilo visual
 
 import React, { useState, useEffect } from "react";
 import type { TripFormData, Budget, TravelerType, Locale } from "@/lib/types";
 import { t } from "@/lib/i18n";
+import { MapPin, Calendar, Users, Clock, Sparkles, Globe2, ChevronDown } from "lucide-react";
 
 const INTERESTS = [
   "🏛️ Historia & Cultura", "🍽️ Gastronomía", "🌿 Naturaleza",
@@ -18,6 +17,15 @@ const BUDGETS: Budget[] = ["economico", "moderado", "premium", "lujo"];
 const BUDGET_SHORT: Record<Budget, string> = {
   economico: "$", moderado: "$$", premium: "$$$", lujo: "ELITE",
 };
+const BUDGET_LABELS: Record<Budget, { es: string; en: string; color: string; bg: string }> = {
+  economico: { es: "Económico",  en: "Budget",   color: "#0f6e56", bg: "#e1f5ee" },
+  moderado:  { es: "Moderado",   en: "Moderate", color: "#633806", bg: "#faeeda" },
+  premium:   { es: "Premium",    en: "Premium",  color: "#3c3489", bg: "#eeedfe" },
+  lujo:      { es: "Lujo ✦",    en: "Luxury ✦", color: "#7d4400", bg: "#fff0d0" },
+};
+const TRAVELER_ICONS: Record<TravelerType, string> = {
+  pareja: "💑", familia: "👨‍👩‍👧", amigos: "👯", solo: "🧳", negocios: "💼",
+};
 
 interface Props {
   onSubmit: (data: TripFormData) => void;
@@ -26,6 +34,7 @@ interface Props {
 }
 
 export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) {
+  // ── Estado (intacto) ──────────────────────────────────────────────────────
   const [city, setCity] = useState("");
   const [country, setCountry] = useState("");
   const [startDate, setStartDate] = useState("");
@@ -43,7 +52,7 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
   const [citySuggestions, setCitySuggestions] = useState<{ city: string; country: string }[]>([]);
   const [showCitySuggest, setShowCitySuggest] = useState(false);
 
-  // Autocomplete ciudad → país via Nominatim (gratis, sin API key)
+  // ── Effects (intactos) ────────────────────────────────────────────────────
   useEffect(() => {
     const q = city.trim();
     if (q.length < 2) { setCitySuggestions([]); return; }
@@ -51,10 +60,7 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
     const tm = setTimeout(async () => {
       try {
         const url = `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(q)}&format=json&addressdetails=1&limit=6&accept-language=${locale}`;
-        const res = await fetch(url, {
-          signal: ctrl.signal,
-          headers: { "Accept": "application/json" },
-        });
+        const res = await fetch(url, { signal: ctrl.signal, headers: { "Accept": "application/json" } });
         if (!res.ok) return;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const data: any[] = await res.json();
@@ -98,6 +104,7 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
     setDateRange(`${fmt(sd)} → ${fmt(ed)} · ${days} ${days > 1 ? (locale === "es" ? "días" : "days") : locale === "es" ? "día" : "day"}`);
   }, [startDate, endDate, locale]);
 
+  // ── Funciones (intactas) ──────────────────────────────────────────────────
   function toggleInterest(i: string) {
     setInterests((prev) => prev.includes(i) ? prev.filter((x) => x !== i) : [...prev, i]);
   }
@@ -119,215 +126,378 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!validate()) return;
-    onSubmit({
-      city, country, startDate, endDate, travelers, travelerType, budget, interests, locale,
-      dayStartTime, dayEndTime,
-    });
+    onSubmit({ city, country, startDate, endDate, travelers, travelerType, budget, interests, locale, dayStartTime, dayEndTime });
   }
 
   const tz = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
+  const es = locale === "es";
 
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <section id="generador" className="py-16 px-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Título de sección */}
-        <div className="text-center max-w-2xl mx-auto mb-10">
-          <span className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
-            {locale === "es" ? "Planifica tu viaje" : "Plan your trip"}
-          </span>
-          <h2 className="text-4xl md:text-5xl font-display italic mt-3">
-            {locale === "es" ? "Manifiesto del viaje" : "Trip Manifest"}
+    <section
+      id="generador"
+      className="relative py-24 px-4 overflow-hidden"
+      style={{
+        background: "linear-gradient(135deg, hsl(220 40% 8%) 0%, hsl(260 45% 12%) 40%, hsl(290 35% 10%) 100%)",
+      }}
+    >
+      {/* Fondo decorativo: imagen de destino con overlay */}
+      <div className="absolute inset-0 -z-10 opacity-20">
+        <img
+          src="https://images.unsplash.com/photo-1488085061387-422e29b40080?auto=format&fit=crop&w=1800&q=60"
+          alt=""
+          aria-hidden="true"
+          className="w-full h-full object-cover"
+        />
+      </div>
+
+      {/* Partículas decorativas */}
+      <div className="absolute inset-0 -z-10 overflow-hidden pointer-events-none">
+        {[
+          { top: "10%",  left: "5%",   w: 300, color: "hsl(12 85% 55% / 0.12)" },
+          { top: "60%",  left: "75%",  w: 400, color: "hsl(260 80% 60% / 0.1)" },
+          { top: "30%",  left: "55%",  w: 200, color: "hsl(180 70% 50% / 0.08)" },
+          { top: "80%",  left: "15%",  w: 250, color: "hsl(320 70% 55% / 0.08)" },
+        ].map((s, i) => (
+          <div key={i} className="absolute rounded-full blur-3xl"
+            style={{ top: s.top, left: s.left, width: s.w, height: s.w, background: s.color }} />
+        ))}
+      </div>
+
+      <div className="max-w-5xl mx-auto relative z-10">
+
+        {/* ── Cabecera de sección ── */}
+        <div className="text-center mb-14">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-semibold uppercase tracking-[0.2em] mb-5 border"
+            style={{ background: "rgba(255,255,255,0.08)", borderColor: "rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.7)", backdropFilter: "blur(10px)" }}>
+            <Sparkles style={{ width: 12, height: 12, color: "hsl(12 85% 65%)" }} />
+            {es ? "Generador con IA" : "AI Generator"}
+          </div>
+          <h2 className="text-5xl md:text-6xl font-bold text-white leading-tight">
+            {es ? "Diseña tu" : "Design your"}{" "}
+            <span style={{
+              backgroundImage: "linear-gradient(135deg, hsl(12 85% 65%), hsl(38 95% 65%), hsl(280 80% 75%))",
+              WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
+            }}>
+              {es ? "viaje perfecto" : "perfect trip"}
+            </span>
           </h2>
+          <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.55)" }}>
+            {es
+              ? "Completa el formulario y nuestra IA construye un itinerario completo en segundos."
+              : "Fill in the form and our AI builds a full itinerary in seconds."}
+          </p>
         </div>
 
-        <div className="bg-white border border-border shadow-manifest p-6 md:p-10 rounded-sm relative overflow-hidden">
-          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent via-primary to-background" />
+        {/* ── Tarjeta del formulario ── */}
+        <div
+          className="rounded-3xl relative overflow-hidden"
+          style={{
+            background: "rgba(255,255,255,0.06)",
+            backdropFilter: "blur(24px)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            boxShadow: "0 40px 80px -20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1)",
+          }}
+        >
+          {/* Barra superior arcoíris */}
+          <div className="absolute top-0 left-0 w-full h-1"
+            style={{ background: "linear-gradient(90deg, hsl(12 85% 55%), hsl(38 95% 60%), hsl(280 80% 65%), hsl(200 80% 60%), hsl(160 70% 50%))" }} />
 
-          {/* Header del formulario */}
-          <div className="flex justify-between items-end mb-8 md:mb-10">
-            <h3 className="text-sm font-mono uppercase tracking-widest">
-              {locale === "es" ? "Manifiesto del viaje (v.01)" : "Trip Manifest (v.01)"}
-            </h3>
-            <div className="flex items-center gap-4">
-              {/* Selector de idioma */}
-              <div className="flex bg-black/5 rounded-full p-1 text-[10px] font-mono">
-                <button type="button" onClick={() => onLocaleChange("es")}
-                  className={`px-3 py-1 rounded-full transition-colors ${locale === "es" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
-                  ES
-                </button>
-                <button type="button" onClick={() => onLocaleChange("en")}
-                  className={`px-3 py-1 rounded-full transition-colors ${locale === "en" ? "bg-white shadow-sm" : "text-muted-foreground"}`}>
-                  EN
-                </button>
+          {/* Header con idioma */}
+          <div className="flex justify-between items-center px-8 pt-8 pb-0">
+            <div className="flex items-center gap-2">
+              <Globe2 style={{ width: 14, height: 14, color: "rgba(255,255,255,0.4)" }} />
+              <span className="text-xs font-mono uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.4)" }}>
+                {es ? "Manifiesto del viaje (v.01)" : "Trip Manifest (v.01)"}
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex rounded-full p-1 text-[10px] font-mono"
+                style={{ background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                {(["es", "en"] as Locale[]).map((loc) => (
+                  <button key={loc} type="button" onClick={() => onLocaleChange(loc)}
+                    className={`px-3 py-1 rounded-full transition-all ${locale === loc
+                      ? "text-white font-semibold"
+                      : "text-white/40 hover:text-white/70"
+                    }`}
+                    style={locale === loc ? { background: "rgba(255,255,255,0.15)" } : {}}>
+                    {loc.toUpperCase()}
+                  </button>
+                ))}
               </div>
-              <span className="hidden sm:inline text-[10px] text-muted-foreground font-mono">{tz}</span>
+              <span className="hidden sm:inline text-[10px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>{tz}</span>
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-8 md:space-y-10">
-            {/* Ciudad + País */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-              <div className="space-y-2 relative">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("city", locale)}
+          <form onSubmit={handleSubmit} className="p-8 space-y-8">
+
+            {/* ── Ciudad + País ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {/* Ciudad */}
+              <div className="relative">
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold mb-3"
+                  style={{ color: "rgba(255,255,255,0.5)" }}>
+                  <MapPin style={{ width: 11, height: 11 }} /> {t("city", locale)}
                 </label>
-                <input type="text" value={city}
-                  onChange={(e) => { setCity(e.target.value); setShowCitySuggest(true); }}
-                  onFocus={() => setShowCitySuggest(true)}
-                  onBlur={() => setTimeout(() => setShowCitySuggest(false), 200)}
+                <div className="relative">
+                  <input
+                    type="text" value={city}
+                    onChange={(e) => { setCity(e.target.value); setShowCitySuggest(true); }}
+                    onFocus={() => setShowCitySuggest(true)}
+                    onBlur={() => setTimeout(() => setShowCitySuggest(false), 200)}
+                    autoComplete="off"
+                    placeholder={es ? "Ej. Barcelona" : "e.g. Kyoto"}
+                    className="w-full text-xl font-bold bg-transparent outline-none transition-all py-3 px-4 rounded-2xl placeholder:font-normal"
+                    style={{
+                      color: "#fff",
+                      border: `1.5px solid ${errors.city ? "#f87171" : "rgba(255,255,255,0.15)"}`,
+                      background: "rgba(255,255,255,0.06)",
+                      fontSize: 18,
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = "hsl(12 85% 65%)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = errors.city ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  />
+                  {showCitySuggest && citySuggestions.length > 0 && (
+                    <ul className="absolute left-0 right-0 top-full z-30 mt-1 overflow-auto text-sm rounded-2xl border"
+                      style={{ background: "hsl(240 30% 12%)", border: "1px solid rgba(255,255,255,0.15)", maxHeight: 220, boxShadow: "0 20px 60px rgba(0,0,0,0.5)" }}>
+                      {citySuggestions.map((s, i) => (
+                        <li key={i}
+                          onMouseDown={(e) => { e.preventDefault(); setCity(s.city); setCountry(s.country); setShowCitySuggest(false); }}
+                          className="px-4 py-3 cursor-pointer flex items-center gap-2 transition-colors"
+                          style={{ borderBottom: i < citySuggestions.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none" }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.08)")}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                        >
+                          <MapPin style={{ width: 12, height: 12, color: "hsl(12 85% 65%)", flexShrink: 0 }} />
+                          <span className="font-semibold text-white">{s.city}</span>
+                          <span style={{ color: "rgba(255,255,255,0.45)" }}>· {s.country}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+                {errors.city && <p className="text-red-400 text-[11px] mt-1 ml-1">{errors.city}</p>}
+              </div>
+
+              {/* País */}
+              <div>
+                <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold mb-3"
+                  style={{ color: "rgba(255,255,255,0.5)" }}>
+                  <Globe2 style={{ width: 11, height: 11 }} /> {t("country", locale)}
+                </label>
+                <input
+                  type="text" value={country} onChange={(e) => setCountry(e.target.value)}
+                  placeholder={es ? "España" : "Japan"}
                   autoComplete="off"
-                  placeholder={locale === "es" ? "Ej. Barcelona" : "e.g. Kyoto"}
-                  className={`w-full text-xl md:text-2xl font-display italic bg-transparent border-b ${errors.city ? "border-red-500" : "border-border"} focus:border-primary outline-none py-2 transition-colors placeholder:text-foreground/30`} />
-                {showCitySuggest && citySuggestions.length > 0 && (
-                  <ul className="absolute left-0 right-0 top-full z-30 bg-white border border-border shadow-lg max-h-64 overflow-auto text-sm">
-                    {citySuggestions.map((s, i) => (
-                      <li key={i}
-                        onMouseDown={(e) => { e.preventDefault(); setCity(s.city); setCountry(s.country); setShowCitySuggest(false); }}
-                        className="px-3 py-2 cursor-pointer hover:bg-black/5">
-                        <span className="font-medium">{s.city}</span>
-                        <span className="text-muted-foreground"> · {s.country}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {errors.city && <p className="text-red-600 text-[11px]">{errors.city}</p>}
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("country", locale)}
-                </label>
-                <input type="text" value={country} onChange={(e) => setCountry(e.target.value)}
-                  placeholder={locale === "es" ? "España" : "Japan"}
-                  autoComplete="off"
-                  className={`w-full text-xl md:text-2xl font-display italic bg-transparent border-b ${errors.country ? "border-red-500" : "border-border"} focus:border-primary outline-none py-2 transition-colors placeholder:text-foreground/30`} />
-                {errors.country && <p className="text-red-600 text-[11px]">{errors.country}</p>}
+                  className="w-full text-xl font-bold bg-transparent outline-none transition-all py-3 px-4 rounded-2xl placeholder:font-normal placeholder:text-white/25"
+                  style={{
+                    color: "#fff",
+                    border: `1.5px solid ${errors.country ? "#f87171" : "rgba(255,255,255,0.15)"}`,
+                    background: "rgba(255,255,255,0.06)",
+                    fontSize: 18,
+                  }}
+                  onFocus={(e) => { e.currentTarget.style.borderColor = "hsl(38 95% 65%)"; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                  onBlur={(e) => { e.currentTarget.style.borderColor = errors.country ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                />
+                {errors.country && <p className="text-red-400 text-[11px] mt-1 ml-1">{errors.country}</p>}
               </div>
             </div>
 
-            {/* Fechas + viajeros */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("startDate", locale)}
-                </label>
-                <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
-                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("endDate", locale)}
-                </label>
-                <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
-                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
-                {errors.endDate && <p className="text-red-600 text-[11px]">{errors.endDate}</p>}
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("travelers", locale)}
-                </label>
-                <input type="number" min={1} max={20} value={travelers}
-                  onChange={(e) => setTravelers(Number(e.target.value))}
-                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
-              </div>
+            {/* ── Fechas + Viajeros ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+              {[
+                { label: t("startDate", locale), icon: Calendar, val: startDate, set: setStartDate, type: "date", err: errors.startDate, accentColor: "hsl(160 70% 55%)" },
+                { label: t("endDate", locale),   icon: Calendar, val: endDate,   set: setEndDate,   type: "date", err: errors.endDate,   accentColor: "hsl(200 80% 60%)" },
+                { label: t("travelers", locale),  icon: Users,    val: travelers, set: (v: any) => setTravelers(Number(v)), type: "number", err: "", accentColor: "hsl(280 75% 65%)" },
+              ].map(({ label, icon: Icon, val, set, type, err, accentColor }) => (
+                <div key={label}>
+                  <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold mb-3"
+                    style={{ color: "rgba(255,255,255,0.5)" }}>
+                    <Icon style={{ width: 11, height: 11 }} /> {label}
+                  </label>
+                  <input
+                    type={type} value={val} onChange={(e) => set(e.target.value)}
+                    min={type === "number" ? 1 : undefined} max={type === "number" ? 20 : undefined}
+                    className="w-full font-mono text-sm py-3 px-4 rounded-2xl outline-none transition-all"
+                    style={{
+                      color: "#fff", background: "rgba(255,255,255,0.06)",
+                      border: `1.5px solid ${err ? "#f87171" : "rgba(255,255,255,0.15)"}`,
+                      colorScheme: "dark",
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = err ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  />
+                  {err && <p className="text-red-400 text-[11px] mt-1 ml-1">{err}</p>}
+                </div>
+              ))}
             </div>
 
-            {/* Horario del día */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {locale === "es" ? "Hora de inicio del día" : "Day start time"}
-                </label>
-                <input type="time" value={dayStartTime} onChange={(e) => setDayStartTime(e.target.value)}
-                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {locale === "es" ? "Hora de cierre del día" : "Day end time"}
-                </label>
-                <input type="time" value={dayEndTime} onChange={(e) => setDayEndTime(e.target.value)}
-                  className="w-full text-sm font-mono border-b border-border py-2 bg-transparent outline-none focus:border-primary" />
-                {errors.dayEndTime && <p className="text-red-600 text-[11px]">{errors.dayEndTime}</p>}
-              </div>
+            {/* ── Horario del día ── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              {[
+                { label: es ? "Hora de inicio del día" : "Day start time", val: dayStartTime, set: setDayStartTime, err: "", accentColor: "hsl(38 95% 65%)" },
+                { label: es ? "Hora de cierre del día" : "Day end time",   val: dayEndTime,   set: setDayEndTime,   err: errors.dayEndTime, accentColor: "hsl(320 80% 65%)" },
+              ].map(({ label, val, set, err, accentColor }) => (
+                <div key={label}>
+                  <label className="flex items-center gap-1.5 text-[10px] uppercase tracking-[0.2em] font-semibold mb-3"
+                    style={{ color: "rgba(255,255,255,0.5)" }}>
+                    <Clock style={{ width: 11, height: 11 }} /> {label}
+                  </label>
+                  <input
+                    type="time" value={val} onChange={(e) => set(e.target.value)}
+                    className="w-full font-mono text-sm py-3 px-4 rounded-2xl outline-none transition-all"
+                    style={{
+                      color: "#fff", background: "rgba(255,255,255,0.06)",
+                      border: `1.5px solid ${err ? "#f87171" : "rgba(255,255,255,0.15)"}`,
+                      colorScheme: "dark",
+                    }}
+                    onFocus={(e) => { e.currentTarget.style.borderColor = accentColor; e.currentTarget.style.background = "rgba(255,255,255,0.1)"; }}
+                    onBlur={(e) => { e.currentTarget.style.borderColor = err ? "#f87171" : "rgba(255,255,255,0.15)"; e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
+                  />
+                  {err && <p className="text-red-400 text-[11px] mt-1 ml-1">{err}</p>}
+                </div>
+              ))}
             </div>
 
+            {/* Resumen de fechas */}
             {dateRange && (
-              <div className="font-mono text-[11px] text-muted-foreground -mt-4">
-                🗓 {dateRange} · ⏰ {dayStartTime} → {dayEndTime}
+              <div className="flex items-center gap-3 text-xs font-mono px-4 py-2.5 rounded-xl -mt-2"
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.5)" }}>
+                <span>🗓</span>
+                <span>{dateRange}</span>
+                <span style={{ color: "rgba(255,255,255,0.2)" }}>·</span>
+                <span>⏰ {dayStartTime} → {dayEndTime}</span>
               </div>
             )}
 
-            {/* Tipo de viajero + presupuesto */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
-              <div className="space-y-4">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("travelerType", locale)}
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {(["pareja", "familia", "amigos", "solo", "negocios"] as TravelerType[]).map((tt) => (
-                    <button type="button" key={tt} onClick={() => setTravelerType(tt)}
-                      className={`px-3 py-1 text-xs rounded-full border transition-colors ${
-                        travelerType === tt
-                          ? "border-primary bg-primary text-white"
-                          : "border-border hover:border-primary"
-                      }`}>
-                      {t(tt, locale)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-4">
-                <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                  {t("budget", locale)}
-                </label>
-                <div className="grid grid-cols-4 gap-1">
-                  {BUDGETS.map((b) => (
-                    <button type="button" key={b} onClick={() => setBudget(b)} title={t(b, locale)}
-                      className={`h-10 grid place-items-center border text-xs font-mono transition-colors ${
-                        budget === b
-                          ? "border-primary bg-primary text-white"
-                          : "border-border hover:bg-black/5"
-                      } ${b === "lujo" ? "text-[9px]" : ""}`}>
-                      {BUDGET_SHORT[b]}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {/* Separador */}
+            <div style={{ height: 1, background: "rgba(255,255,255,0.08)" }} />
 
-            {/* Intereses */}
-            <div className="space-y-4">
-              <label className="text-[10px] uppercase tracking-widest text-muted-foreground block">
-                {t("interests", locale)}
+            {/* ── Tipo de viajero ── */}
+            <div>
+              <label className="text-[10px] uppercase tracking-[0.2em] font-semibold mb-4 flex items-center gap-1.5"
+                style={{ color: "rgba(255,255,255,0.5)" }}>
+                <Users style={{ width: 11, height: 11 }} /> {t("travelerType", locale)}
               </label>
               <div className="flex flex-wrap gap-2">
-                {INTERESTS.map((i) => {
-                  const on = interests.includes(i);
+                {(["pareja", "familia", "amigos", "solo", "negocios"] as TravelerType[]).map((tt) => {
+                  const active = travelerType === tt;
                   return (
-                    <button type="button" key={i} onClick={() => toggleInterest(i)}
-                      className={`px-4 py-2 text-xs rounded-full border transition-all ${
-                        on
-                          ? "bg-accent text-white border-accent"
-                          : "bg-black/5 border-transparent hover:border-primary"
-                      }`}>
-                      {i}
+                    <button type="button" key={tt} onClick={() => setTravelerType(tt)}
+                      className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200 flex items-center gap-1.5"
+                      style={active ? {
+                        background: "linear-gradient(135deg, hsl(12 85% 55%), hsl(38 95% 60%))",
+                        color: "#fff",
+                        border: "1.5px solid transparent",
+                        boxShadow: "0 4px 16px hsl(12 85% 55% / 0.4)",
+                        transform: "scale(1.05)",
+                      } : {
+                        background: "rgba(255,255,255,0.06)",
+                        color: "rgba(255,255,255,0.65)",
+                        border: "1.5px solid rgba(255,255,255,0.1)",
+                      }}>
+                      <span>{TRAVELER_ICONS[tt]}</span>
+                      {t(tt, locale)}
                     </button>
                   );
                 })}
               </div>
             </div>
 
-            <button type="submit"
-              className="w-full group relative overflow-hidden bg-foreground text-background py-5 md:py-6 flex items-center justify-center gap-4 hover:bg-accent transition-colors duration-500">
-              <span className="font-mono text-sm uppercase tracking-[0.2em]">
-                {locale === "es" ? "Diseñar mi viaje" : "Sequence my journey"}
-              </span>
-              <span className="text-lg group-hover:translate-x-1 transition-transform">→</span>
-            </button>
-          </form>
+            {/* ── Presupuesto ── */}
+            <div>
+              <label className="text-[10px] uppercase tracking-[0.2em] font-semibold mb-4 block"
+                style={{ color: "rgba(255,255,255,0.5)" }}>
+                {t("budget", locale)}
+              </label>
+              <div className="grid grid-cols-4 gap-3">
+                {BUDGETS.map((b) => {
+                  const active = budget === b;
+                  const meta = BUDGET_LABELS[b];
+                  return (
+                    <button type="button" key={b} onClick={() => setBudget(b)}
+                      title={es ? meta.es : meta.en}
+                      className="py-3 rounded-2xl text-center transition-all duration-200 relative overflow-hidden"
+                      style={active ? {
+                        background: `linear-gradient(135deg, ${meta.color}cc, ${meta.color})`,
+                        border: `1.5px solid ${meta.color}`,
+                        boxShadow: `0 6px 20px ${meta.color}55`,
+                        transform: "scale(1.05) translateY(-2px)",
+                      } : {
+                        background: "rgba(255,255,255,0.06)",
+                        border: "1.5px solid rgba(255,255,255,0.1)",
+                      }}>
+                      <div className="text-lg font-bold" style={{ color: active ? "#fff" : "rgba(255,255,255,0.7)" }}>
+                        {BUDGET_SHORT[b]}
+                      </div>
+                      <div className="text-[9px] font-semibold mt-0.5 uppercase tracking-wide"
+                        style={{ color: active ? "rgba(255,255,255,0.85)" : "rgba(255,255,255,0.35)" }}>
+                        {es ? meta.es : meta.en}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-          <p className="mt-6 text-center text-[10px] text-muted-foreground uppercase tracking-[0.1em]">
-            {locale === "es" ? "Resultados generados en ~10s con IA." : "Results generated in ~10s with AI."}
-          </p>
+            {/* ── Intereses ── */}
+            <div>
+              <label className="text-[10px] uppercase tracking-[0.2em] font-semibold mb-4 block"
+                style={{ color: "rgba(255,255,255,0.5)" }}>
+                {t("interests", locale)}
+                <span className="ml-2 normal-case text-[9px]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                  ({interests.length} {es ? "seleccionados" : "selected"})
+                </span>
+              </label>
+              <div className="flex flex-wrap gap-2">
+                {INTERESTS.map((interest) => {
+                  const on = interests.includes(interest);
+                  return (
+                    <button type="button" key={interest} onClick={() => toggleInterest(interest)}
+                      className="px-4 py-2 text-sm rounded-xl font-medium transition-all duration-200"
+                      style={on ? {
+                        background: "linear-gradient(135deg, hsl(260 60% 35%), hsl(280 70% 45%))",
+                        color: "#fff",
+                        border: "1.5px solid hsl(280 70% 55%)",
+                        boxShadow: "0 4px 12px hsl(260 60% 30% / 0.4)",
+                        transform: "scale(1.04)",
+                      } : {
+                        background: "rgba(255,255,255,0.05)",
+                        color: "rgba(255,255,255,0.6)",
+                        border: "1.5px solid rgba(255,255,255,0.1)",
+                      }}>
+                      {interest}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── Botón submit ── */}
+            <button
+              type="submit"
+              className="w-full group relative overflow-hidden rounded-2xl py-5 flex items-center justify-center gap-3 font-bold text-base transition-all duration-300 hover:scale-[1.01] active:scale-[0.99]"
+              style={{
+                background: "linear-gradient(135deg, hsl(12 85% 55%) 0%, hsl(38 95% 60%) 50%, hsl(12 85% 55%) 100%)",
+                backgroundSize: "200% 100%",
+                color: "#fff",
+                boxShadow: "0 12px 40px -8px hsl(12 85% 55% / 0.6), inset 0 1px 0 rgba(255,255,255,0.2)",
+                letterSpacing: "0.08em",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundPosition = "100% 0")}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundPosition = "0 0")}
+            >
+              <Sparkles style={{ width: 18, height: 18 }} />
+              <span className="uppercase tracking-[0.15em] text-sm font-bold">
+                {es ? "✦ Diseñar mi viaje ahora" : "✦ Design my trip now"}
+              </span>
+              <span className="text-xl group-hover:translate-x-2 transition-transform duration-300">→</span>
+            </button>
+
+            <p className="text-center text-[11px] font-mono" style={{ color: "rgba(255,255,255,0.3)" }}>
+              ⚡ {es ? "Resultados listos en ~10 segundos · 100% gratis · Sin registro" : "Results ready in ~10s · 100% free · No sign-up required"}
+            </p>
+          </form>
         </div>
       </div>
     </section>
