@@ -9,7 +9,7 @@ import type { Locale } from "@/lib/types";
 // Reemplaza "#" por la URL real cuando crees cada cuenta
 const SOCIAL_LINKS = {
   instagram: "https://instagram.com/tripcraftai",   // ← pon tu URL de Instagram
-  twitter:   "https://https://x.com/eduardogdaza1",     // ← pon tu URL de Twitter/X
+  twitter:   "https://x.com/eduardogdaza1",     // ← pon tu URL de Twitter/X
   facebook:  "https://facebook.com/tripcraftai",    // ← pon tu URL de Facebook
   youtube:   "https://youtube.com/@tripcraftai",    // ← pon tu URL de YouTube
   email:     "mailto:hola@tripcraftai.com",         // ← pon tu email real
