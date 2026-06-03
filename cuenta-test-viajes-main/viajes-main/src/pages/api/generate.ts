@@ -54,41 +54,24 @@ function parseRetryAfterMs(errBody: string): number {
 }
 
 // ── Groq con retry automático ante 429 ───────────────────────
-async function callGroq(prompt: string, maxTokens: number, temperature = 0.7, retries = 3): Promise<string> {
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
-      body: JSON.stringify({
-        model: "llama-3.3-70b-versatile",
-        max_tokens: maxTokens, temperature,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
-
-    if (res.status === 429) {
-      const errJson = await res.json().catch(() => ({}));
-      const errStr = JSON.stringify(errJson);
-      const waitMs = parseRetryAfterMs(errStr);
-      console.warn(`[groq] 429 rate limit, waiting ${waitMs}ms before retry ${attempt + 1}/${retries}...`);
-      if (attempt < retries) {
-        await sleep(waitMs);
-        continue;
-      }
-      throw new Error(`Groq error 429 (retries exhausted): ${errStr}`);
-    }
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
-    }
-
-    const data = await res.json();
-    const text: string = data?.choices?.[0]?.message?.content ?? "";
-    if (!text) throw new Error("Empty Groq response");
-    return text;
+async function callGroq(prompt: string, maxTokens: number, temperature = 0.7): Promise<string> {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.GROQ_API_KEY}` },
+    body: JSON.stringify({
+      model: "llama-3.3-70b-versatile",
+      max_tokens: maxTokens, temperature,
+      messages: [{ role: "user", content: prompt }],
+    }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Groq error ${res.status}: ${JSON.stringify(err)}`);
   }
-  throw new Error("callGroq: exceeded retries");
+  const data = await res.json();
+  const text: string = data?.choices?.[0]?.message?.content ?? "";
+  if (!text) throw new Error("Empty Groq response");
+  return text;
 }
 
 // ── Groq: traditional / recurring / cultural events ───────────
@@ -401,12 +384,12 @@ function normalizeDayTimes(itinerary: ItineraryData, dayStart: string, dayEnd: s
   }
 }
 
-// ── Genera días de forma SECUENCIAL en lotes de 2 ────────────
-// Lotes de 2 días (~5000 tokens) + pausa entre lotes para no
-// agotar el límite de 12000 TPM del plan gratuito de Groq.
+// ── Genera días de forma SECUENCIAL de 1 en 1 ───────────────
+// 1 día por llamada (~3500 tokens) + pausa de 3s entre días.
+// 5 días: 5 × ~3500 = 17500 tokens pero escalonados 1/min → OK.
 async function generateDaysSequential(form: TripFormData, totalDays: number): Promise<ItineraryData["days"]> {
-  const BATCH_SIZE = 2;
-  const INTER_BATCH_DELAY_MS = 8000; // 8s entre lotes para respetar TPM sin exceder timeout Vercel
+  const BATCH_SIZE = 1;
+  const INTER_BATCH_DELAY_MS = 3000; // 3s entre días — suficiente para no saturar TPM
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDays: any[] = [];
 
@@ -421,7 +404,7 @@ async function generateDaysSequential(form: TripFormData, totalDays: number): Pr
 
     let raw: string;
     try {
-      raw = await callGroq(prompt, 7500, 0.7);
+      raw = await callGroq(prompt, 4500, 0.7);
     } catch (err) {
       console.error(`[days batch ${fromDay}-${toDay}] Groq call failed:`, err);
       continue;
@@ -436,8 +419,8 @@ async function generateDaysSequential(form: TripFormData, totalDays: number): Pr
       console.warn(`[days batch ${fromDay}-${toDay}] JSON parse failed, attempting repair`);
       try {
         const fix = await callGroq(
-          `Fix this JSON array. Return ONLY the valid JSON array, nothing else:\n\n${jsonStr.slice(0, 6000)}`,
-          7500, 0.1
+          `Fix this JSON array. Return ONLY the valid JSON array, nothing else:\n\n${jsonStr.slice(0, 4000)}`,
+          4500, 0.1
         );
         arr = JSON.parse(extractJSONArray(fix));
       } catch (err2) {
