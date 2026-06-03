@@ -11,19 +11,22 @@
   --shadow-card: 0 4px 24px -4px rgba(0, 0, 0, 0.08);
 }
 
-html,
-body {
+html, body {
   background: hsl(260 20% 98%);
   color: hsl(260 30% 12%);
   font-family: Inter, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
 }
 
 ::selection {
   background: hsl(12 85% 55% / 0.2);
 }
 
-/* Legacy helpers used inside ItineraryView (kept for backwards compatibility) */
+/* Scroll suave para anclas */
+html { scroll-behavior: smooth; }
+
+/* Legacy helpers usados dentro de ItineraryView (intocables) */
 .card {
   background: #fff;
   border: 1px solid hsl(260 30% 12% / 0.08);
@@ -45,9 +48,7 @@ body {
   transition: all 0.15s ease;
   user-select: none;
 }
-.chip:hover {
-  border-color: hsl(12 85% 55%);
-}
+.chip:hover { border-color: hsl(12 85% 55%); }
 .chip.on {
   background: hsl(260 60% 30%);
   color: #fff;
@@ -67,12 +68,27 @@ body {
   color: hsl(260 10% 45%);
   padding-top: 2px;
 }
-.tl-body {
-  min-width: 0;
+.tl-body { min-width: 0; }
+
+/* Animaciones de entrada */
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes revealUp {
+  from { opacity: 0; transform: translateY(30px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+/* line-clamp utility */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
+
+/* Input de email en footer */
+input[type="email"]::placeholder { color: rgba(255,255,255,0.35); }
+input[type="email"]:focus { border-color: hsl(12 85% 55% / 0.5) !important; }
