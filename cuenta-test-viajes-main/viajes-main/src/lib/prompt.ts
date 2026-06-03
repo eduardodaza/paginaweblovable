@@ -170,7 +170,7 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
     {"name":"Real Restaurant","type":"cuisine","priceRange":"$$","rating":"4.3","specialty":"dish","zone":"neighborhood","source":"TripAdvisor","address":"address if known","dayHint":1,"mealHint":"lunch"}
   ],
   "events": [
-    {"name":"Real Event","type":"festival","when":"YYYY-MM-DD or recurrence","description":"1 sentence","price":"Free","venue":"Real Venue","source":"local"}
+    {"name":"Real Event","type":"festival","when":"YYYY-MM-DD or recurrence","description":"1 sentence","price":"Free or ticket price","venue":"Real Venue","ticketUrl":"https://... or empty string","source":"local"}
   ],
   "alerts": [
     {"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"}
@@ -179,7 +179,7 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
 
 CONSTRAINTS:
 - restaurants: exactly ${minResto}–${maxResto} real entries. dayHint 1..${totalDays}. At least 3/day (breakfast+lunch+dinner). Budget-consistent prices.
-- events: ≥4 real entries. Include festivals/traditions in ${form.city} for ${startMonth}. Include iconic recurring shows if nothing special.
+- events: ≥4 real entries. Include festivals/traditions in ${form.city} for ${startMonth}. Include iconic recurring shows if nothing special. For each event with tickets (concerts, sports, paid shows), set ticketUrl to the official booking URL (Ticketmaster, Eventim, official venue site, etc.) or leave as empty string if free/unknown.
 - alerts: 2–4 entries.
 - All must be REAL places/events in ${form.city}, ${form.country}.`;
 }
@@ -200,5 +200,5 @@ Traveler: ${travelerLine}
 Budget: ${budgetLine}
 RULES: Day1=#1 iconic must-see. Each day unique zone. 7–10 items/day, times unique ascending ${dayStart}→${dayEnd}, no gap >2.5h. HIERARCHY: top-tier iconic landmarks ALWAYS go in PRIMARY "name", NEVER inside "alternatives". NO POI REPETITION across days (not even in alternatives). Every sight/food/event/night: 2 SECONDARY alternatives (same zone & budget, never an iconic top-10). Budget-consistent prices. Lunch 12-15:30, Dinner 19-23. ${minResto}–${maxResto} restaurants with dayHint. ≥4 events. All places REAL in ${form.city}.
 Respond ONLY valid JSON (no markdown):
-{"city":"${form.city}","country":"${form.country}","tagline":"max 10 words","summary":"2 sentences","weather":{"maxTemp":25,"minTemp":15,"description":"weather"},"estimatedBudgetPerDay":"range","days":[{"dayNum":1,"theme":"theme","date":"${firstDayLabel}","zone":"sector","items":[{"id":"d1i1","time":"${dayStart}","type":"sight","name":"place","description":"1 sentence","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"tip","alternatives":[{"name":"alt","description":"1 sentence","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"why"}]}]}],"restaurants":[{"name":"restaurant","type":"cuisine","priceRange":"$$","rating":"4.3","specialty":"dish","zone":"neighborhood","source":"TripAdvisor","address":"address","dayHint":1,"mealHint":"lunch"}],"events":[{"name":"event","type":"festival","when":"YYYY-MM-DD","description":"1 sentence","price":"Free","venue":"venue","source":"local"}],"alerts":[{"level":"medio","zone":"zone","description":"note","tip":"tip"}]}`;
+{"city":"${form.city}","country":"${form.country}","tagline":"max 10 words","summary":"2 sentences","weather":{"maxTemp":25,"minTemp":15,"description":"weather"},"estimatedBudgetPerDay":"range","days":[{"dayNum":1,"theme":"theme","date":"${firstDayLabel}","zone":"sector","items":[{"id":"d1i1","time":"${dayStart}","type":"sight","name":"place","description":"1 sentence","duration":"1h 30min","transport":"metro","transportTime":"10 min","price":"$$","rating":"4.8","tip":"tip","alternatives":[{"name":"alt","description":"1 sentence","type":"sight","duration":"1h","transport":"walking","transportTime":"5 min","price":"$$","rating":"4.4","tip":"why"}]}]}],"restaurants":[{"name":"restaurant","type":"cuisine","priceRange":"$$","rating":"4.3","specialty":"dish","zone":"neighborhood","source":"TripAdvisor","address":"address","dayHint":1,"mealHint":"lunch"}],"events":[{"name":"event","type":"festival","when":"YYYY-MM-DD","description":"1 sentence","price":"Free or price","venue":"venue","ticketUrl":"https://... or empty string","source":"local"}],"alerts":[{"level":"medio","zone":"zone","description":"note","tip":"tip"}]}`;
 }
