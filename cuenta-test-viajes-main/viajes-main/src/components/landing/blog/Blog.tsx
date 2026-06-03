@@ -154,6 +154,7 @@ export function Blog({ locale }: { locale?: string }) {
               src={featured.img}
               alt={featured.title}
               loading="lazy"
+                referrerPolicy="no-referrer"
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
             />
             <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.35) 50%, rgba(0,0,0,0) 100%)" }} />
@@ -210,6 +211,7 @@ export function Blog({ locale }: { locale?: string }) {
                 {/* Imagen */}
                 <div className="w-32 min-w-[8rem] relative overflow-hidden">
                   <img src={p.img} alt={p.title} loading="lazy"
+                referrerPolicy="no-referrer"
                     className="absolute inset-0 w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" />
                 </div>
                 {/* Info */}
@@ -266,6 +268,7 @@ export function Blog({ locale }: { locale?: string }) {
               style={{ height: 220, boxShadow: "0 4px 24px -6px rgba(0,0,0,0.12)" }}
             >
               <img src={p.img} alt={p.title} loading="lazy"
+                referrerPolicy="no-referrer"
                 className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               <div className="absolute inset-0" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.1) 100%)" }} />
               <div className="absolute top-4 left-4">
