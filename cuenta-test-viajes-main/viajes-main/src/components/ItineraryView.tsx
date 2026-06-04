@@ -231,6 +231,7 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
 
         {/* ── RESTAURANTS ── */}
         {tab === "restaurants" && (
+          <>
           {restError ? (
           <div className="iv-card" style={{ textAlign: "center", padding: "40px 20px" }}>
             <div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div>
@@ -254,6 +255,7 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
         ) : (
           <RestaurantsPanel restaurants={restaurants} locale={locale} city={data.city} />
         )}
+          </>
         )}
 
         {/* ── EVENTS ── */}
