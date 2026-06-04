@@ -63,6 +63,28 @@ async function callGroq(prompt: string, maxTokens: number, temperature = 0.7): P
   return text;
 }
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+function retryAfterMs(errBody: string): number {
+  const m = /try again in ([\d.]+)s/i.exec(errBody);
+  return m ? Math.ceil(parseFloat(m[1]) * 1000) + 2000 : 20000;
+}
+
+async function callGroqWithRetry(prompt: string, maxTokens: number, temperature = 0.6): Promise<string> {
+  try {
+    return await callGroq(prompt, maxTokens, temperature);
+  } catch (err: unknown) {
+    const msg = String(err);
+    if (msg.includes("429")) {
+      const wait = retryAfterMs(msg);
+      console.warn(`[groq-retry] 429 — waiting ${wait}ms then retrying once...`);
+      await sleep(wait);
+      return await callGroq(prompt, maxTokens, temperature);
+    }
+    throw err;
+  }
+}
+
 // ── Groq: traditional / recurring / cultural events ───────────
 async function fetchTraditionalEvents(form: TripFormData): Promise<Event[]> {
   const sd = new Date(form.startDate + "T12:00:00");
@@ -443,7 +465,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // ── PASO 2: Metadata (secuencial tras los días) ───────────
     let metadata: Record<string, unknown> = {};
     try {
-      const metaRaw = await callGroq(buildMetadataPrompt(form), 3000, 0.6);
+      const metaRaw = await callGroqWithRetry(buildMetadataPrompt(form), 3000, 0.6);
       const metaStr = extractJSON(metaRaw);
       metadata = JSON.parse(metaStr);
     } catch (err) {
