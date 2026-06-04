@@ -63,6 +63,35 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
   const [editNote, setEditNote] = useState("");
   const [editAltIdx, setEditAltIdx] = useState<number>(-1);
 
+  // ── Restaurantes con reintentar ──────────────────────────
+  const [restaurants, setRestaurants] = useState<ItineraryData["restaurants"]>(data.restaurants ?? []);
+  const [restLoading, setRestLoading] = useState(false);
+  const [restError, setRestError] = useState<string | null>(
+    (!data.restaurants || data.restaurants.length === 0) ? "empty" : null
+  );
+
+  async function retryRestaurants() {
+    if (!form) return;
+    setRestLoading(true);
+    setRestError(null);
+    try {
+      const res = await fetch("/api/metadata", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      const json = await res.json();
+      const list: ItineraryData["restaurants"] = json.restaurants ?? [];
+      if (list.length === 0) throw new Error("empty");
+      setRestaurants(list);
+    } catch {
+      setRestError("retry_failed");
+    } finally {
+      setRestLoading(false);
+    }
+  }
+
   function toggleDay(i: number) {
     setOpenDays(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
   }
@@ -202,7 +231,29 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
 
         {/* ── RESTAURANTS ── */}
         {tab === "restaurants" && (
-          <RestaurantsPanel restaurants={data.restaurants} locale={locale} city={data.city} />
+          {restError ? (
+          <div className="iv-card" style={{ textAlign: "center", padding: "40px 20px" }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🍽️</div>
+            <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)", marginBottom: 20 }}>
+              {restError === "retry_failed"
+                ? (locale === "es" ? "No se pudo cargar. Intenta de nuevo en unos segundos." : "Could not load. Try again in a few seconds.")
+                : (locale === "es" ? "Los restaurantes no se cargaron en la generación inicial." : "Restaurants did not load in the initial generation.")}
+            </p>
+            <button
+              onClick={retryRestaurants}
+              disabled={restLoading}
+              style={{ padding: "10px 24px", borderRadius: 999, border: "none", cursor: restLoading ? "not-allowed" : "pointer",
+                background: restLoading ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))",
+                color: "#fff", fontWeight: 600, fontSize: 14, display: "inline-flex", alignItems: "center", gap: 8,
+                boxShadow: restLoading ? "none" : "0 4px 16px hsl(12 85% 55%/0.4)" }}>
+              {restLoading
+                ? <><span style={{ display:"inline-block",width:14,height:14,border:"2px solid rgba(255,255,255,0.4)",borderTopColor:"#fff",borderRadius:"50%",animation:"spin 0.8s linear infinite" }} />{locale === "es" ? "Cargando..." : "Loading..."}</>
+                : <>{locale === "es" ? "🔄 Reintentar restaurantes" : "🔄 Retry restaurants"}</>}
+            </button>
+          </div>
+        ) : (
+          <RestaurantsPanel restaurants={restaurants} locale={locale} city={data.city} />
+        )}
         )}
 
         {/* ── EVENTS ── */}
