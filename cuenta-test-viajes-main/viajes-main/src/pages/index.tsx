@@ -56,8 +56,8 @@ export default function Home() {
   return (
     <>
       <Head>
-        <title>TripCraft AI — Itinerarios turísticos inteligentes</title>
-        <meta name="description" content="Genera itinerarios turísticos personalizados con IA. Lugares, restaurantes, eventos y alertas de seguridad en segundos." />
+        <title>Smart Travel — Planifica tu viaje completo en minutos</title>
+        <meta name="description" content="Planifica tu viaje completo en menos de un minuto. Lugares, restaurantes, eventos y alertas de seguridad en segundos." />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
