@@ -174,12 +174,12 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
             {es ? "Generador con IA" : "AI Generator"}
           </div>
           <h2 className="text-5xl md:text-6xl font-bold text-white leading-tight">
-            {es ? "Diseña tu" : "Design your"}{" "}
+            {es ? "Cuéntanos tu" : "Tell us about your"}{" "}
             <span style={{
               backgroundImage: "linear-gradient(135deg, hsl(12 85% 65%), hsl(38 95% 65%), hsl(280 80% 75%))",
               WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
             }}>
-              {es ? "viaje perfecto" : "perfect trip"}
+              {es ? "viaje y nosotros organizamos el resto" : "trip and we organize the rest"}
             </span>
           </h2>
           <p className="mt-4 text-base max-w-xl mx-auto" style={{ color: "rgba(255,255,255,0.55)" }}>
@@ -487,7 +487,7 @@ export function ItineraryGenerator({ onSubmit, locale, onLocaleChange }: Props) 
             >
               <Sparkles style={{ width: 18, height: 18 }} />
               <span className="uppercase tracking-[0.15em] text-sm font-bold">
-                {es ? "✦ Diseñar mi viaje ahora" : "✦ Design my trip now"}
+                {es ? "✦ Crear mi plan de viaje" : "✦ Create my travel plan"}
               </span>
               <span className="text-xl group-hover:translate-x-2 transition-transform duration-300">→</span>
             </button>
