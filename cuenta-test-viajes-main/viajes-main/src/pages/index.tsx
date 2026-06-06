@@ -1,4 +1,4 @@
-// src/pages/index.tsx — INTOCABLE la lógica funcional; solo mejoras visuales en landing
+// src/pages/index.tsx
 import React, { useState } from "react";
 import Head from "next/head";
 import type { TripFormData, ItineraryData, Locale } from "@/lib/types";
@@ -11,35 +11,112 @@ import { Destinations } from "@/components/landing/destinations/Destinations";
 import { ItineraryGenerator } from "@/components/landing/itinerary/ItineraryGenerator";
 import { Blog } from "@/components/landing/blog/Blog";
 import { Pricing } from "@/components/landing/sections/Pricing";
-import {
-  BannerPublicidadTop,
-  BannerPublicidadFooter,
-} from "@/components/landing/ads/AdBanners";
+import { BannerPublicidadTop, BannerPublicidadFooter } from "@/components/landing/ads/AdBanners";
 
 type AppState = "landing" | "loading" | "result";
 
-export default function Home() {
-  const [state, setState] = useState<AppState>("landing");
-  const [itinerary, setItinerary] = useState<ItineraryData | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [lastForm, setLastForm] = useState<TripFormData | null>(null);
-  const [locale, setLocale] = useState<Locale>("es");
+// ── Llamada a la API para UNA ciudad (sin cambios) ─────────────────────────────
+async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(form),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
 
+// ── Fusionar varios ItineraryData en uno solo ──────────────────────────────────
+// Re-numera los días consecutivamente y concatena todo lo demás
+function mergeItineraries(results: ItineraryData[]): ItineraryData {
+  if (results.length === 1) return results[0];
+
+  let dayOffset = 0;
+  const allDays = results.flatMap((r, ri) => {
+    const days = (r.days ?? []).map(d => ({
+      ...d,
+      dayNum: dayOffset + d.dayNum,
+      // Prefija el nombre de la ciudad en el tema para distinguirla
+      theme: `${r.city}: ${d.theme}`,
+      items: d.items.map(item => ({
+        ...item,
+        id: `c${ri}_${item.id}`, // evitar colisiones de IDs
+      })),
+    }));
+    dayOffset += r.days?.length ?? 0;
+    return days;
+  });
+
+  const primary = results[0];
+  const citiesLabel = results.map(r => r.city).join(" → ");
+  const countriesLabel = [...new Set(results.map(r => r.country))].join(" / ");
+
+  return {
+    ...primary,
+    city: citiesLabel,
+    country: countriesLabel,
+    tagline: `${citiesLabel} — Viaje multidestino`,
+    summary: results.map(r => `${r.city}: ${r.summary ?? ""}`).join(" | "),
+    days: allDays,
+    // Combinar restaurantes, eventos y alertas de todas las ciudades
+    restaurants: results.flatMap(r => r.restaurants ?? []),
+    events:      results.flatMap(r => r.events ?? []),
+    alerts:      results.flatMap(r => r.alerts ?? []),
+    hotels:      results.flatMap(r => r.hotels ?? []),
+    estimatedBudgetPerDay: results.map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`).join(" | "),
+  };
+}
+
+export default function Home() {
+  const [state, setState]       = useState<AppState>("landing");
+  const [itinerary, setItinerary] = useState<ItineraryData | null>(null);
+  const [error, setError]       = useState<string | null>(null);
+  const [lastForm, setLastForm] = useState<TripFormData | null>(null);
+  const [locale, setLocale]     = useState<Locale>("es");
+
+  // ── Carga parcial: nombre de ciudad actual mientras se procesa ─────────────
+  const [loadingCity, setLoadingCity] = useState("");
+
+  // ── Handler destino único (igual que antes, sin cambios) ───────────────────
   async function handleSubmit(form: TripFormData) {
     setLastForm(form);
     setLocale(form.locale);
+    setLoadingCity(`${form.city}, ${form.country}`);
+    setState("loading");
+    setError(null);
+    try {
+      const data = await fetchItinerary(form);
+      setItinerary(data);
+      setState("result");
+    } catch {
+      setError("No se pudo generar el itinerario. Por favor intenta de nuevo.");
+      setState("landing");
+    }
+  }
+
+  // ── Handler NUEVO: múltiples ciudades ──────────────────────────────────────
+  // Recibe array de { form, days } — genera UNA llamada API por ciudad
+  async function handleMultiSubmit(
+    stops: { form: TripFormData; days: number }[],
+    baseForm: TripFormData
+  ) {
+    if (stops.length === 0) return;
+    setLastForm(baseForm);
+    setLocale(baseForm.locale);
     setState("loading");
     setError(null);
 
     try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-      if (!res.ok) throw new Error(`API error: ${res.status}`);
-      const data: ItineraryData = await res.json();
-      setItinerary(data);
+      const results: ItineraryData[] = [];
+
+      for (const stop of stops) {
+        // Mostrar ciudad actual en el Loader
+        setLoadingCity(`${stop.form.city}, ${stop.form.country}`);
+        const data = await fetchItinerary(stop.form);
+        results.push(data);
+      }
+
+      setItinerary(mergeItineraries(results));
       setState("result");
     } catch {
       setError("No se pudo generar el itinerario. Por favor intenta de nuevo.");
@@ -71,6 +148,7 @@ export default function Home() {
           <Destinations locale={locale} />
           <ItineraryGenerator
             onSubmit={handleSubmit}
+            onMultiSubmit={handleMultiSubmit}
             locale={locale}
             onLocaleChange={setLocale}
           />
@@ -89,8 +167,8 @@ export default function Home() {
       )}
 
       {/* ── LOADING ── */}
-      {state === "loading" && lastForm && (
-        <Loader city={`${lastForm.city}, ${lastForm.country}`} locale={locale} />
+      {state === "loading" && (
+        <Loader city={loadingCity} locale={locale} />
       )}
 
       {/* ── RESULT ── */}
