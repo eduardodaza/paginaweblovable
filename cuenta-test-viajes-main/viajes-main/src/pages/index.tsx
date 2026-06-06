@@ -49,7 +49,7 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
 
   const primary = results[0];
   const citiesLabel = results.map(r => r.city).join(" → ");
-  const countriesLabel = [...new Set(results.map(r => r.country))].join(" / ");
+  const countriesLabel = results.map(r => r.country).filter((c, i, arr) => arr.indexOf(c) === i).join(" / ");
 
   return {
     ...primary,
