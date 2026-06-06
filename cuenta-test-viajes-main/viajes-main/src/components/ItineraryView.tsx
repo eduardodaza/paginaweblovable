@@ -231,12 +231,7 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
                           🎟 {t("bookNow", locale)} ↗
                         </a>
                       )}
-                      {ev.websiteUrl && (
-                        <a href={ev.websiteUrl} target="_blank" rel="noopener noreferrer"
-                          className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)", background: "rgba(255,255,255,0.06)" }}>
-                          🌐 See website
-                        </a>
-                      )}
+
                     </div>
                   </div>
                 </div>
