@@ -31,25 +31,31 @@ async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
 function mergeItineraries(results: ItineraryData[]): ItineraryData {
   if (results.length === 1) return results[0];
 
-  let dayOffset = 0;
+  // Calcular offsets acumulados ANTES del flatMap para evitar bugs de closure
+  const offsets: number[] = [];
+  let acc = 0;
+  for (const r of results) {
+    offsets.push(acc);
+    acc += (r.days ?? []).length;
+  }
+
   const allDays = results.flatMap((r, ri) => {
-    const days = (r.days ?? []).map(d => ({
+    const offset = offsets[ri];
+    return (r.days ?? []).map((d, di) => ({
       ...d,
-      dayNum: dayOffset + d.dayNum,
-      // Prefija el nombre de la ciudad en el tema para distinguirla
+      dayNum: offset + di + 1, // renumerar absolutamente: 1, 2, 3... N
       theme: `${r.city}: ${d.theme}`,
-      items: d.items.map(item => ({
+      items: (d.items ?? []).map(item => ({
         ...item,
-        id: `c${ri}_${item.id}`, // evitar colisiones de IDs
+        id: `c${ri}_${item.id}`,
       })),
     }));
-    dayOffset += r.days?.length ?? 0;
-    return days;
   });
 
   const primary = results[0];
   const citiesLabel = results.map(r => r.city).join(" → ");
-  const countriesLabel = results.map(r => r.country).filter((c, i, arr) => arr.indexOf(c) === i).join(" / ");
+  const countriesLabel = results.map(r => r.country)
+    .filter((c, i, arr) => arr.indexOf(c) === i).join(" / ");
 
   return {
     ...primary,
@@ -58,12 +64,13 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
     tagline: `${citiesLabel} — Viaje multidestino`,
     summary: results.map(r => `${r.city}: ${r.summary ?? ""}`).join(" | "),
     days: allDays,
-    // Combinar restaurantes, eventos y alertas de todas las ciudades
     restaurants: results.flatMap(r => r.restaurants ?? []),
     events:      results.flatMap(r => r.events ?? []),
     alerts:      results.flatMap(r => r.alerts ?? []),
     hotels:      results.flatMap(r => r.hotels ?? []),
-    estimatedBudgetPerDay: results.map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`).join(" | "),
+    estimatedBudgetPerDay: results
+      .map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`)
+      .join(" | "),
   };
 }
 
