@@ -208,7 +208,7 @@ export function ItineraryGenerator({ onSubmit, onMultiSubmit, locale, onLocaleCh
 
       const baseForm: TripFormData = {
         city:    validStops.map(s => s.city).join(" → "),
-        country: [...new Set(validStops.map(s => s.country))].join(" / "),
+        country: validStops.map(s => s.country).filter((c, i, arr) => arr.indexOf(c) === i).join(" / "),
         startDate,
         endDate: totalEnd.toISOString().split("T")[0],
         travelers, travelerType, budget, interests, locale, dayStartTime, dayEndTime,
