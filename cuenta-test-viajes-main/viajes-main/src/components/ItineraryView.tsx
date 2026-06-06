@@ -57,14 +57,10 @@ const GLOBAL_CSS = `
 export default function ItineraryView({ data, locale, onReset, form }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
   const totalDays = (data.days ?? []).length;
-  const isMultiCity = data.city.includes("→");
-  // Multiciudad: abre todos los días. Ciudad única: solo el primero.
-  const initialOpen = new Set<number>(
-    isMultiCity
-      ? Array.from({ length: totalDays }, (_, i) => i)
-      : [0]
+  // Siempre abrir todos los días cuando hay más de 1 (multiciudad o viaje largo)
+  const [openDays, setOpenDays] = useState<Set<number>>(
+    new Set<number>(Array.from({ length: totalDays }, (_, i) => i))
   );
-  const [openDays, setOpenDays] = useState<Set<number>>(initialOpen);
   const allOpen = openDays.size === totalDays;
   const [edits, setEdits] = useState<UserEdits>({});
   const [editModal, setEditModal] = useState<ItineraryItem | null>(null);
