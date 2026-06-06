@@ -27,11 +27,10 @@ async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
 }
 
 // ── Fusionar varios ItineraryData en uno solo ──────────────────────────────────
-// Re-numera los días consecutivamente y concatena todo lo demás
 function mergeItineraries(results: ItineraryData[]): ItineraryData {
   if (results.length === 1) return results[0];
 
-  // Calcular offsets acumulados ANTES del flatMap para evitar bugs de closure
+  // Calcular offsets acumulados ANTES del flatMap
   const offsets: number[] = [];
   let acc = 0;
   for (const r of results) {
@@ -43,7 +42,7 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
     const offset = offsets[ri];
     return (r.days ?? []).map((d, di) => ({
       ...d,
-      dayNum: offset + di + 1, // renumerar absolutamente: 1, 2, 3... N
+      dayNum: offset + di + 1,
       theme: `${r.city}: ${d.theme}`,
       items: (d.items ?? []).map(item => ({
         ...item,
@@ -75,24 +74,27 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
 }
 
 export default function Home() {
-  const [state, setState]       = useState<AppState>("landing");
+  const [state, setState]         = useState<AppState>("landing");
   const [itinerary, setItinerary] = useState<ItineraryData | null>(null);
-  const [error, setError]       = useState<string | null>(null);
-  const [lastForm, setLastForm] = useState<TripFormData | null>(null);
-  const [locale, setLocale]     = useState<Locale>("es");
-
-  // ── Carga parcial: nombre de ciudad actual mientras se procesa ─────────────
+  const [error, setError]         = useState<string | null>(null);
+  const [lastForm, setLastForm]   = useState<TripFormData | null>(null);
+  const [locale, setLocale]       = useState<Locale>("es");
   const [loadingCity, setLoadingCity] = useState("");
 
-  // ── Handler destino único (igual que antes, sin cambios) ───────────────────
+  // ── Array de resultados por ciudad — clave para discriminar tabs ───────────
+  const [cityResults, setCityResults] = useState<ItineraryData[]>([]);
+
+  // ── Handler destino único ──────────────────────────────────────────────────
   async function handleSubmit(form: TripFormData) {
     setLastForm(form);
     setLocale(form.locale);
     setLoadingCity(`${form.city}, ${form.country}`);
     setState("loading");
     setError(null);
+    setCityResults([]);
     try {
       const data = await fetchItinerary(form);
+      setCityResults([data]);
       setItinerary(data);
       setState("result");
     } catch {
@@ -101,8 +103,7 @@ export default function Home() {
     }
   }
 
-  // ── Handler NUEVO: múltiples ciudades ──────────────────────────────────────
-  // Recibe array de { form, days } — genera UNA llamada API por ciudad
+  // ── Handler múltiples ciudades ─────────────────────────────────────────────
   async function handleMultiSubmit(
     stops: { form: TripFormData; days: number }[],
     baseForm: TripFormData
@@ -112,17 +113,16 @@ export default function Home() {
     setLocale(baseForm.locale);
     setState("loading");
     setError(null);
+    setCityResults([]);
 
     try {
       const results: ItineraryData[] = [];
-
       for (const stop of stops) {
-        // Mostrar ciudad actual en el Loader
         setLoadingCity(`${stop.form.city}, ${stop.form.country}`);
         const data = await fetchItinerary(stop.form);
         results.push(data);
       }
-
+      setCityResults(results);
       setItinerary(mergeItineraries(results));
       setState("result");
     } catch {
@@ -134,6 +134,7 @@ export default function Home() {
   function handleReset() {
     setState("landing");
     setItinerary(null);
+    setCityResults([]);
     setError(null);
   }
 
@@ -146,7 +147,6 @@ export default function Home() {
         <link rel="icon" href="/favicon.ico" />
       </Head>
 
-      {/* ── LANDING ── */}
       {state === "landing" && (
         <div className="min-h-screen bg-background text-foreground font-sans selection:bg-primary/20">
           <Navbar locale={locale} onLocaleChange={setLocale} />
@@ -173,18 +173,17 @@ export default function Home() {
         </div>
       )}
 
-      {/* ── LOADING ── */}
       {state === "loading" && (
         <Loader city={loadingCity} locale={locale} />
       )}
 
-      {/* ── RESULT ── */}
       {state === "result" && itinerary && (
         <ItineraryView
           data={itinerary}
           locale={locale}
           onReset={handleReset}
           form={lastForm}
+          cityResults={cityResults}
         />
       )}
     </>
