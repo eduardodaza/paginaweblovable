@@ -37,6 +37,7 @@ interface Props {
   locale: Locale;
   onReset: () => void;
   form?: TripFormData | null;
+  cityResults?: ItineraryData[]; // resultados individuales por ciudad
 }
 
 // ── CSS global inyectado una vez ──────────────────────────────────────────────
@@ -54,7 +55,7 @@ const GLOBAL_CSS = `
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 `;
 
-export default function ItineraryView({ data, locale, onReset, form }: Props) {
+export default function ItineraryView({ data, locale, onReset, form, cityResults = [] }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
   const totalDays = (data.days ?? []).length;
   // Siempre abrir todos los días cuando hay más de 1 (multiciudad o viaje largo)
@@ -230,132 +231,72 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
 
         {/* ── RESTAURANTS ── */}
         {tab === "restaurants" && (
-          <RestaurantsPanel restaurants={data.restaurants} locale={locale} city={data.city} />
+          cityResults.length > 1
+            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+                <RestaurantsPanel restaurants={r.restaurants} locale={locale} city={r.city} />
+              } />
+            : <RestaurantsPanel restaurants={data.restaurants} locale={locale} city={data.city} />
         )}
 
         {/* ── EVENTS ── */}
         {tab === "events" && (
-          <div className="iv-card iv-animate">
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, color: "#fff", display: "flex", alignItems: "center", gap: 8 }}>
-              🎭 {t("events", locale)}
-            </h3>
-            {data.events?.length ? data.events.map((ev, i) => {
-              const dotColor = ev.type === "concert" ? "hsl(12 85% 60%)" : ev.type === "permanent" ? "hsl(160 70% 50%)" : "hsl(280 70% 65%)";
-              return (
-                <div key={i} style={{ padding: "14px 0", borderBottom: i < data.events.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", display: "flex", gap: 14 }}>
-                  <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 8px ${dotColor}` }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{ev.name}</div>
-                    <div style={{ fontSize: 12, color: "hsl(280 70% 70%)", marginTop: 3 }}>📅 {ev.when} {ev.venue ? `· ${ev.venue}` : ""}</div>
-                    {ev.source && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>via {ev.source}</div>}
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.6 }}>{ev.description}</div>
-                    <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                      <span style={{ fontSize: 11, background: "hsl(280 70% 50%/0.2)", color: "hsl(280 70% 72%)", padding: "3px 10px", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.3)" }}>
-                        {ev.price}
-                      </span>
-                      {ev.ticketUrl && (
-                        <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
-                          style={{ fontSize: 11, padding: "4px 12px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 10, textDecoration: "none", fontWeight: 600, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
-                          🎟 {t("bookNow", locale)} ↗
-                        </a>
-                      )}
-
-                    </div>
-                  </div>
-                </div>
-              );
-            }) : (
-              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2rem 0", fontSize: 13 }}>
-                <div style={{ fontSize: 36, marginBottom: 10 }}>🎭</div>
-                No se encontraron eventos publicados para estas fechas.
-              </div>
-            )}
-          </div>
+          cityResults.length > 1
+            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+                <EventsPanel events={r.events} locale={locale} city={r.city} />
+              } />
+            : <EventsPanel events={data.events} locale={locale} city={data.city} />
         )}
 
         {/* ── HOTELS ── */}
         {tab === "hotels" && (
-          <div className="iv-animate">
-            <div className="iv-card" style={{ marginBottom: 14 }}>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", margin: 0, lineHeight: 1.7 }}>
-                🏨 {locale === "es"
-                  ? `Busca y compara hoteles en ${data.city} en las mejores plataformas. Haz clic para ver disponibilidad y precios reales.`
-                  : `Search and compare hotels in ${data.city}. Click any option to see availability and real prices.`}
-              </p>
-            </div>
-            {data.hotels && data.hotels.length > 0 ? (
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(200px,1fr))", gap: 12 }}>
-                {data.hotels.map((hotel, i) => {
-                  const pc = HOTEL_COLORS[hotel.platform ?? ""] ?? { accent: "hsl(12 85% 55%)", label: hotel.name };
-                  return (
-                    <a key={i} href={hotel.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
-                      <div style={{
-                        borderRadius: 18, padding: "18px 18px 16px", cursor: "pointer",
-                        background: "rgba(255,255,255,0.05)",
-                        border: `1.5px solid ${pc.accent}55`,
-                        transition: "all 0.2s",
-                        position: "relative", overflow: "hidden",
-                      }}
-                        onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 12px 32px ${pc.accent}44`; }}
-                        onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}
-                      >
-                        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: pc.accent, borderRadius: "18px 18px 0 0" }} />
-                        <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{pc.label}</div>
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginBottom: 14 }}>{data.city}, {data.country}</div>
-                        <div style={{ background: pc.accent, color: "white", borderRadius: 10, padding: "8px 14px", fontSize: 12, fontWeight: 600, textAlign: "center", boxShadow: `0 4px 14px ${pc.accent}55` }}>
-                          Buscar hoteles ↗
-                        </div>
-                      </div>
-                    </a>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
-                <div style={{ fontSize: 40, marginBottom: 10 }}>🏨</div>
-                <div style={{ fontSize: 14 }}>Generando links de hoteles...</div>
-              </div>
-            )}
-          </div>
+          cityResults.length > 1
+            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+                <HotelsPanel hotels={r.hotels} locale={locale} city={r.city} />
+              } />
+            : <HotelsPanel hotels={data.hotels} locale={locale} city={data.city} />
         )}
 
         {/* ── EXTRAS: Vuelos / Autos / Transporte / Tours ── */}
         {tab === "extras" && (
           <div className="iv-animate">
-            <TravelExtrasTabs
-              city={form?.city ?? data.city}
-              country={form?.country ?? data.country}
-              from={form?.startDate ?? ""}
-              to={form?.endDate ?? ""}
-              pax={form?.travelers ?? 1}
-            />
+            {cityResults.length > 1 ? (
+              <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                {cityResults.map((r, ri) => {
+                  const cityAccents = ["hsl(12 85% 55%)","hsl(280 70% 60%)","hsl(200 80% 55%)","hsl(38 95% 58%)","hsl(160 70% 50%)","hsl(320 70% 60%)"];
+                  const accent = cityAccents[ri % cityAccents.length];
+                  return (
+                    <div key={ri}>
+                      <CityHeader city={r.city} country={r.country} accent={accent} />
+                      <TravelExtrasTabs
+                        city={r.city}
+                        country={r.country}
+                        from={r.days?.[0] ? (() => { const d = new Date(form?.startDate ?? ""); const offset = cityResults.slice(0,ri).reduce((a,c)=>a+(c.days?.length??0),0); d.setDate(d.getDate()+offset); return d.toISOString().split("T")[0]; })() : (form?.startDate ?? "")}
+                        to={r.days?.length ? (() => { const d = new Date(form?.startDate ?? ""); const offset = cityResults.slice(0,ri+1).reduce((a,c)=>a+(c.days?.length??0),0); d.setDate(d.getDate()+offset-1); return d.toISOString().split("T")[0]; })() : (form?.endDate ?? "")}
+                        pax={form?.travelers ?? 1}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <TravelExtrasTabs
+                city={form?.city ?? data.city}
+                country={form?.country ?? data.country}
+                from={form?.startDate ?? ""}
+                to={form?.endDate ?? ""}
+                pax={form?.travelers ?? 1}
+              />
+            )}
           </div>
         )}
 
         {/* ── SECURITY ── */}
         {tab === "security" && (
-          <div className="iv-card iv-animate">
-            <h3 style={{ fontSize: 15, fontWeight: 600, marginBottom: 16, color: "#fff" }}>🛡️ {t("security", locale)}</h3>
-            {data.alerts?.map((al, i) => {
-              const riskLabels = { alto: t("riskHigh", locale), medio: t("riskMed", locale), bajo: t("riskLow", locale) };
-              const r = RISK[al.level] ?? RISK.bajo;
-              return (
-                <div key={i} style={{ padding: "14px 0", borderBottom: i < data.alerts.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", display: "flex", gap: 14 }}>
-                  <div style={{ width: 4, borderRadius: 2, background: r.bar, flexShrink: 0, alignSelf: "stretch", boxShadow: `0 0 8px ${r.bar}88` }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                      {al.zone}
-                      <span style={{ fontSize: 10, background: r.badge.bg, color: r.badge.color, padding: "2px 9px", borderRadius: 8, fontWeight: 600 }}>{riskLabels[al.level]}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 4, lineHeight: 1.6 }}>{al.description}</div>
-                    <div style={{ fontSize: 12, color: "hsl(160 70% 55%)", marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}>
-                      <span>💡</span> {al.tip}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          cityResults.length > 1
+            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+                <SecurityPanel alerts={r.alerts} locale={locale} />
+              } />
+            : <SecurityPanel alerts={data.alerts} locale={locale} />
         )}
 
         {/* ── EDIT MODAL ── */}
@@ -591,6 +532,138 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
         </div>
       )}
     </div>
+  );
+}
+
+// ── CityHeader — separador visual entre ciudades ───────────────────────────────
+function CityHeader({ city, country, accent }: { city: string; country: string; accent: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, paddingBottom: 10, borderBottom: `2px solid ${accent}` }}>
+      <div style={{ width: 10, height: 10, borderRadius: "50%", background: accent, boxShadow: `0 0 10px ${accent}` }} />
+      <div>
+        <span style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{city}</span>
+        <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginLeft: 8 }}>{country}</span>
+      </div>
+    </div>
+  );
+}
+
+// ── MultiCitySection — wrapper que itera por ciudad ───────────────────────────
+function MultiCitySection({ cityResults, locale: _locale, renderCity }: {
+  cityResults: ItineraryData[];
+  locale: Locale;
+  renderCity: (r: ItineraryData, idx: number) => React.ReactNode;
+}) {
+  const accents = ["hsl(12 85% 55%)","hsl(280 70% 60%)","hsl(200 80% 55%)","hsl(38 95% 58%)","hsl(160 70% 50%)","hsl(320 70% 60%)"];
+  return (
+    <div className="iv-animate" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+      {cityResults.map((r, i) => (
+        <div key={i} className="iv-card" style={{ borderTop: `3px solid ${accents[i % accents.length]}` }}>
+          <CityHeader city={r.city} country={r.country} accent={accents[i % accents.length]} />
+          {renderCity(r, i)}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── EventsPanel ───────────────────────────────────────────────────────────────
+function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["events"]; locale: Locale; city?: string }) {
+  if (!events?.length) return (
+    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2rem 0", fontSize: 13 }}>
+      <div style={{ fontSize: 36, marginBottom: 10 }}>🎭</div>
+      No se encontraron eventos para estas fechas.
+    </div>
+  );
+  return (
+    <>
+      {events.map((ev, i) => {
+        const dotColor = ev.type === "concert" ? "hsl(12 85% 60%)" : ev.type === "permanent" ? "hsl(160 70% 50%)" : "hsl(280 70% 65%)";
+        return (
+          <div key={i} style={{ padding: "14px 0", borderBottom: i < events.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", display: "flex", gap: 14 }}>
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 8px ${dotColor}` }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ev.name}</div>
+              <div style={{ fontSize: 12, color: "hsl(280 70% 70%)", marginTop: 3 }}>📅 {ev.when} {ev.venue ? `· ${ev.venue}` : ""}</div>
+              {ev.source && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>via {ev.source}</div>}
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.65 }}>{ev.description}</div>
+              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: 11, background: "hsl(280 70% 50%/0.2)", color: "hsl(280 70% 72%)", padding: "3px 10px", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.3)" }}>{ev.price}</span>
+                {ev.ticketUrl && (
+                  <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 11, padding: "5px 14px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 10, textDecoration: "none", fontWeight: 600, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
+                    🎟 {t("bookNow", locale)} ↗
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+// ── HotelsPanel ───────────────────────────────────────────────────────────────
+function HotelsPanel({ hotels, locale, city }: { hotels: ItineraryData["hotels"]; locale: Locale; city: string }) {
+  if (!hotels?.length) return (
+    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2rem 0", fontSize: 13 }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>🏨</div>
+      <div>{locale === "es" ? "Generando links de hoteles..." : "Loading hotel links..."}</div>
+    </div>
+  );
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 12 }}>
+      {hotels.map((hotel, i) => {
+        const pc = HOTEL_COLORS[hotel.platform ?? ""] ?? { accent: "hsl(12 85% 55%)", label: hotel.name };
+        return (
+          <a key={i} href={hotel.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: "none", display: "block" }}>
+            <div style={{ borderRadius: 16, padding: "16px 16px 14px", cursor: "pointer", background: "rgba(255,255,255,0.05)", border: `1.5px solid ${pc.accent}55`, transition: "all 0.2s", position: "relative", overflow: "hidden" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)"; (e.currentTarget as HTMLDivElement).style.boxShadow = `0 12px 32px ${pc.accent}44`; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)"; (e.currentTarget as HTMLDivElement).style.boxShadow = "none"; }}>
+              <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 3, background: pc.accent }} />
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 3 }}>{pc.label}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 12 }}>{city}</div>
+              <div style={{ background: pc.accent, color: "white", borderRadius: 8, padding: "7px 12px", fontSize: 12, fontWeight: 600, textAlign: "center" }}>
+                {locale === "es" ? "Buscar hoteles ↗" : "Search hotels ↗"}
+              </div>
+            </div>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── SecurityPanel ─────────────────────────────────────────────────────────────
+function SecurityPanel({ alerts, locale }: { alerts: ItineraryData["alerts"]; locale: Locale }) {
+  if (!alerts?.length) return (
+    <div style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "1.5rem 0", fontSize: 13 }}>
+      ✅ {locale === "es" ? "Sin alertas de seguridad registradas." : "No security alerts registered."}
+    </div>
+  );
+  const riskLabels = { alto: t("riskHigh", locale), medio: t("riskMed", locale), bajo: t("riskLow", locale) };
+  return (
+    <>
+      {alerts.map((al, i) => {
+        const r = RISK[al.level] ?? RISK.bajo;
+        return (
+          <div key={i} style={{ padding: "14px 0", borderBottom: i < alerts.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", display: "flex", gap: 14 }}>
+            <div style={{ width: 4, borderRadius: 2, background: r.bar, flexShrink: 0, alignSelf: "stretch", boxShadow: `0 0 8px ${r.bar}88` }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {al.zone}
+                <span style={{ fontSize: 10, background: r.badge.bg, color: r.badge.color, padding: "2px 9px", borderRadius: 8, fontWeight: 600 }}>{riskLabels[al.level]}</span>
+              </div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.55)", marginTop: 4, lineHeight: 1.65 }}>{al.description}</div>
+              <div style={{ fontSize: 13, color: "hsl(160 70% 55%)", marginTop: 6, display: "flex", alignItems: "flex-start", gap: 5 }}>
+                <span>💡</span> {al.tip}
+              </div>
+            </div>
+          </div>
+        );
+      })}
+    </>
   );
 }
 
