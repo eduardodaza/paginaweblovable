@@ -68,17 +68,12 @@ export default function Loader({ city, locale }: Props) {
         {/* Ciudad */}
         <h2 style={{
           fontFamily: "'Cormorant Garamond', 'Georgia', serif",
-          fontSize: "clamp(2rem, 8vw, 3rem)",
-          fontWeight: 600,
-          fontStyle: "italic",
-          lineHeight: 1.1,
-          marginBottom: 8,
+          fontSize: "clamp(1.6rem, 6vw, 2.8rem)",
+          fontWeight: 600, fontStyle: "italic", lineHeight: 1.1, marginBottom: 8,
           backgroundImage: "linear-gradient(135deg, #fff 0%, hsl(38 95% 80%) 60%, hsl(12 85% 75%) 100%)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
-          backgroundClip: "text",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text",
         }}>
-          {city}
+          {city || "Tu destino"}
         </h2>
         <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 32, fontStyle: "italic" }}>
           {steps[current]}
