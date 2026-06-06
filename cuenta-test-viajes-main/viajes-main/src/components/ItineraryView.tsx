@@ -56,7 +56,16 @@ const GLOBAL_CSS = `
 
 export default function ItineraryView({ data, locale, onReset, form }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
-  const [openDays, setOpenDays] = useState<Set<number>>(new Set([0]));
+  const totalDays = (data.days ?? []).length;
+  const isMultiCity = data.city.includes("→");
+  // Multiciudad: abre todos los días. Ciudad única: solo el primero.
+  const initialOpen = new Set<number>(
+    isMultiCity
+      ? Array.from({ length: totalDays }, (_, i) => i)
+      : [0]
+  );
+  const [openDays, setOpenDays] = useState<Set<number>>(initialOpen);
+  const allOpen = openDays.size === totalDays;
   const [edits, setEdits] = useState<UserEdits>({});
   const [editModal, setEditModal] = useState<ItineraryItem | null>(null);
   const [editName, setEditName] = useState("");
@@ -65,6 +74,12 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
 
   function toggleDay(i: number) {
     setOpenDays(prev => { const s = new Set(prev); s.has(i) ? s.delete(i) : s.add(i); return s; });
+  }
+  function toggleAllDays() {
+    setOpenDays(allOpen
+      ? new Set<number>()
+      : new Set<number>(Array.from({ length: totalDays }, (_, i) => i))
+    );
   }
   function openEdit(item: ItineraryItem) {
     setEditModal(item);
@@ -195,10 +210,27 @@ export default function ItineraryView({ data, locale, onReset, form }: Props) {
         </div>
 
         {/* ── DAYS ── */}
-        {tab === "days" && data.days?.map((day, di) => (
-          <DayCard key={di} day={day} index={di} open={openDays.has(di)}
-            onToggle={() => toggleDay(di)} edits={edits} onEdit={openEdit} locale={locale} />
-        ))}
+        {tab === "days" && (
+          <>
+            {/* Botón expandir/colapsar todos — visible solo con múltiples días */}
+            {totalDays > 1 && (
+              <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
+                <button onClick={toggleAllDays}
+                  style={{ fontSize: 12, padding: "6px 16px", borderRadius: 12, cursor: "pointer", border: "1px solid rgba(255,255,255,0.15)", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.6)", transition: "all 0.2s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.12)"; (e.currentTarget as HTMLButtonElement).style.color = "#fff"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.06)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.6)"; }}>
+                  {allOpen
+                    ? (locale === "es" ? "⊖ Colapsar todos" : "⊖ Collapse all")
+                    : (locale === "es" ? "⊕ Expandir todos" : "⊕ Expand all")}
+                </button>
+              </div>
+            )}
+            {data.days?.map((day, di) => (
+              <DayCard key={di} day={day} index={di} open={openDays.has(di)}
+                onToggle={() => toggleDay(di)} edits={edits} onEdit={openEdit} locale={locale} />
+            ))}
+          </>
+        )}
 
         {/* ── RESTAURANTS ── */}
         {tab === "restaurants" && (
