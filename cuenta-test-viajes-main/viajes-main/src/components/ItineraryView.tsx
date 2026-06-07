@@ -37,7 +37,8 @@ interface Props {
   locale: Locale;
   onReset: () => void;
   form?: TripFormData | null;
-  cityResults?: ItineraryData[]; // resultados individuales por ciudad
+  cityResults?: ItineraryData[];
+  onRetryCity?: (cityIndex: number) => Promise<void>;
 }
 
 // ── CSS global inyectado una vez ──────────────────────────────────────────────
@@ -55,7 +56,7 @@ const GLOBAL_CSS = `
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 `;
 
-export default function ItineraryView({ data, locale, onReset, form, cityResults = [] }: Props) {
+export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
   const totalDays = (data.days ?? []).length;
 
@@ -218,7 +219,18 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── DAYS ── */}
         {tab === "days" && (
           <>
-            {/* Botón expandir/colapsar todos — visible solo con múltiples días */}
+            {/* Aviso si alguna ciudad no generó días — con botón retry */}
+            {cityResults.length > 1 && cityResults.some(r => !r.days?.length) && (
+              <div style={{ marginBottom: 12, padding: "12px 18px", borderRadius: 16, background: "hsl(38 90% 50%/0.1)", border: "1px solid hsl(38 90% 50%/0.3)", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, color: "hsl(38 95% 65%)" }}>
+                  ⚠️ {locale === "es" ? "Algunas ciudades no se generaron correctamente." : "Some cities did not generate correctly."}
+                </span>
+                {cityResults.map((r, i) => !r.days?.length && onRetryCity ? (
+                  <RetryButton key={i} label={r.city} locale={locale} onRetry={() => onRetryCity(i)} />
+                ) : null)}
+              </div>
+            )}
+            {/* Botón expandir/colapsar todos */}
             {totalDays > 1 && (
               <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 10 }}>
                 <button onClick={toggleAllDays}
@@ -241,7 +253,7 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── RESTAURANTS ── */}
         {tab === "restaurants" && (
           cityResults.length > 1
-            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+            ? <MultiCitySection cityResults={cityResults} locale={locale} onRetry={onRetryCity} renderCity={(r, ri) =>
                 <RestaurantsPanel restaurants={r.restaurants} locale={locale} city={r.city} />
               } />
             : <RestaurantsPanel restaurants={data.restaurants} locale={locale} city={data.city} />
@@ -250,7 +262,7 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── EVENTS ── */}
         {tab === "events" && (
           cityResults.length > 1
-            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+            ? <MultiCitySection cityResults={cityResults} locale={locale} onRetry={onRetryCity} renderCity={(r, ri) =>
                 <EventsPanel events={r.events} locale={locale} city={r.city} />
               } />
             : <EventsPanel events={data.events} locale={locale} city={data.city} />
@@ -259,7 +271,7 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── HOTELS ── */}
         {tab === "hotels" && (
           cityResults.length > 1
-            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+            ? <MultiCitySection cityResults={cityResults} locale={locale} onRetry={onRetryCity} renderCity={(r, ri) =>
                 <HotelsPanel hotels={r.hotels} locale={locale} city={r.city} />
               } />
             : <HotelsPanel hotels={data.hotels} locale={locale} city={data.city} />
@@ -302,7 +314,7 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── SECURITY ── */}
         {tab === "security" && (
           cityResults.length > 1
-            ? <MultiCitySection cityResults={cityResults} locale={locale} renderCity={(r) =>
+            ? <MultiCitySection cityResults={cityResults} locale={locale} onRetry={onRetryCity} renderCity={(r, ri) =>
                 <SecurityPanel alerts={r.alerts} locale={locale} />
               } />
             : <SecurityPanel alerts={data.alerts} locale={locale} />
@@ -544,6 +556,21 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
   );
 }
 
+// ── RetryButton — botón de reintento reutilizable ────────────────────────────
+function RetryButton({ label, locale, onRetry }: { label: string; locale: Locale; onRetry: () => Promise<void> }) {
+  const [loading, setLoading] = React.useState(false);
+  async function handle() {
+    setLoading(true);
+    try { await onRetry(); } finally { setLoading(false); }
+  }
+  return (
+    <button onClick={handle} disabled={loading}
+      style={{ padding: "6px 16px", borderRadius: 14, cursor: loading ? "not-allowed" : "pointer", background: loading ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "#fff", fontWeight: 600, fontSize: 12, border: "none", opacity: loading ? 0.7 : 1, transition: "all 0.2s", boxShadow: loading ? "none" : "0 4px 12px hsl(12 85% 55%/0.4)" }}>
+      {loading ? "⏳..." : `🔄 ${locale === "es" ? "Reintentar" : "Retry"} ${label}`}
+    </button>
+  );
+}
+
 // ── CityHeader — separador visual entre ciudades ───────────────────────────────
 function CityHeader({ city, country, accent }: { city: string; country: string; accent: string }) {
   return (
@@ -557,21 +584,69 @@ function CityHeader({ city, country, accent }: { city: string; country: string; 
   );
 }
 
-// ── MultiCitySection — wrapper que itera por ciudad ───────────────────────────
-function MultiCitySection({ cityResults, locale: _locale, renderCity }: {
+// ── MultiCitySection — wrapper que itera por ciudad con retry ─────────────────
+function MultiCitySection({ cityResults, locale, onRetry, renderCity }: {
   cityResults: ItineraryData[];
   locale: Locale;
+  onRetry?: (idx: number) => Promise<void>;
   renderCity: (r: ItineraryData, idx: number) => React.ReactNode;
 }) {
   const accents = ["hsl(12 85% 55%)","hsl(280 70% 60%)","hsl(200 80% 55%)","hsl(38 95% 58%)","hsl(160 70% 50%)","hsl(320 70% 60%)"];
+  const [retrying, setRetrying] = React.useState<number | null>(null);
+
+  async function handleRetry(i: number) {
+    if (!onRetry) return;
+    setRetrying(i);
+    try { await onRetry(i); } finally { setRetrying(null); }
+  }
+
   return (
     <div className="iv-animate" style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {cityResults.map((r, i) => (
-        <div key={i} className="iv-card" style={{ borderTop: `3px solid ${accents[i % accents.length]}` }}>
-          <CityHeader city={r.city} country={r.country} accent={accents[i % accents.length]} />
-          {renderCity(r, i)}
-        </div>
-      ))}
+      {cityResults.map((r, i) => {
+        const accent = accents[i % accents.length];
+        // Detectar si esta ciudad no tiene datos útiles
+        const hasData =
+          (r.days?.length ?? 0) > 0 ||
+          (r.restaurants?.length ?? 0) > 0 ||
+          (r.events?.length ?? 0) > 0 ||
+          (r.alerts?.length ?? 0) > 0;
+
+        return (
+          <div key={i} className="iv-card" style={{ borderTop: `3px solid ${accent}` }}>
+            <CityHeader city={r.city} country={r.country} accent={accent} />
+
+            {!hasData ? (
+              // Ciudad sin datos — mostrar botón retry
+              <div style={{ textAlign: "center", padding: "24px 0" }}>
+                <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+                <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 16 }}>
+                  {locale === "es"
+                    ? `No se pudieron cargar los datos de ${r.city}. Esto puede ocurrir por límite de velocidad.`
+                    : `Could not load data for ${r.city}. This may occur due to rate limiting.`}
+                </div>
+                {onRetry && (
+                  <button
+                    onClick={() => handleRetry(i)}
+                    disabled={retrying === i}
+                    style={{
+                      padding: "10px 28px", borderRadius: 20, cursor: retrying === i ? "not-allowed" : "pointer",
+                      background: retrying === i ? "rgba(255,255,255,0.1)" : "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))",
+                      color: "#fff", fontWeight: 700, fontSize: 13, border: "none",
+                      boxShadow: retrying === i ? "none" : "0 4px 16px hsl(12 85% 55%/0.4)",
+                      opacity: retrying === i ? 0.7 : 1, transition: "all 0.2s",
+                    }}>
+                    {retrying === i
+                      ? (locale === "es" ? "⏳ Reintentando..." : "⏳ Retrying...")
+                      : (locale === "es" ? "🔄 Reintentar esta ciudad" : "🔄 Retry this city")}
+                  </button>
+                )}
+              </div>
+            ) : (
+              renderCity(r, i)
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
