@@ -58,11 +58,20 @@ const GLOBAL_CSS = `
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [] }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
   const totalDays = (data.days ?? []).length;
-  // Siempre abrir todos los días cuando hay más de 1 (multiciudad o viaje largo)
-  const [openDays, setOpenDays] = useState<Set<number>>(
-    new Set<number>(Array.from({ length: totalDays }, (_, i) => i))
+
+  // Set con TODOS los índices siempre — garantiza que todos los días estén abiertos
+  // Se recalcula si cambian los datos (nuevo itinerario)
+  const allIndices = React.useMemo(
+    () => new Set<number>(Array.from({ length: totalDays }, (_, i) => i)),
+    [totalDays]
   );
+  const [openDays, setOpenDays] = useState<Set<number>>(allIndices);
   const allOpen = openDays.size === totalDays;
+
+  // Si llegan nuevos datos (ej: multiciudad termina de cargar), abrir todos
+  React.useEffect(() => {
+    setOpenDays(new Set<number>(Array.from({ length: totalDays }, (_, i) => i)));
+  }, [totalDays]);
   const [edits, setEdits] = useState<UserEdits>({});
   const [editModal, setEditModal] = useState<ItineraryItem | null>(null);
   const [editName, setEditName] = useState("");
