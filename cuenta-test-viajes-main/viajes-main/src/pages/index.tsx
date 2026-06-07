@@ -1,4 +1,4 @@
-// src/pages/index.tsx
+// src/pages/index.tsx — lógica multi-ciudad con retry por ciudad
 import React, { useState } from "react";
 import Head from "next/head";
 import type { TripFormData, ItineraryData, Locale } from "@/lib/types";
@@ -15,7 +15,7 @@ import { BannerPublicidadTop, BannerPublicidadFooter } from "@/components/landin
 
 type AppState = "landing" | "loading" | "result";
 
-// ── Llamada a la API para UNA ciudad (sin cambios) ─────────────────────────────
+// ── Llamada a la API para UNA ciudad (sin cambios) ─────────────────────────
 async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
   const res = await fetch("/api/generate", {
     method: "POST",
@@ -26,11 +26,13 @@ async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
   return res.json();
 }
 
-// ── Fusionar varios ItineraryData en uno solo ──────────────────────────────────
+// ── Espera N ms (para respetar rate limit de Groq entre ciudades) ───────────
+function wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Fusionar varios ItineraryData en uno solo ───────────────────────────────
 function mergeItineraries(results: ItineraryData[]): ItineraryData {
   if (results.length === 1) return results[0];
 
-  // Calcular offsets acumulados ANTES del flatMap
   const offsets: number[] = [];
   let acc = 0;
   for (const r of results) {
@@ -38,38 +40,32 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
     acc += (r.days ?? []).length;
   }
 
-  const allDays = results.flatMap((r, ri) => {
-    const offset = offsets[ri];
-    return (r.days ?? []).map((d, di) => ({
+  const allDays = results.flatMap((r, ri) =>
+    (r.days ?? []).map((d, di) => ({
       ...d,
-      dayNum: offset + di + 1,
+      dayNum: offsets[ri] + di + 1,
       theme: `${r.city}: ${d.theme}`,
       items: (d.items ?? []).map(item => ({
         ...item,
         id: `c${ri}_${item.id}`,
       })),
-    }));
-  });
+    }))
+  );
 
   const primary = results[0];
-  const citiesLabel = results.map(r => r.city).join(" → ");
-  const countriesLabel = results.map(r => r.country)
-    .filter((c, i, arr) => arr.indexOf(c) === i).join(" / ");
-
   return {
     ...primary,
-    city: citiesLabel,
-    country: countriesLabel,
-    tagline: `${citiesLabel} — Viaje multidestino`,
+    city:    results.map(r => r.city).join(" → "),
+    country: results.map(r => r.country).filter((c, i, a) => a.indexOf(c) === i).join(" / "),
+    tagline: results.map(r => r.city).join(" → ") + " — Viaje multidestino",
     summary: results.map(r => `${r.city}: ${r.summary ?? ""}`).join(" | "),
-    days: allDays,
+    days:    allDays,
     restaurants: results.flatMap(r => r.restaurants ?? []),
     events:      results.flatMap(r => r.events ?? []),
     alerts:      results.flatMap(r => r.alerts ?? []),
     hotels:      results.flatMap(r => r.hotels ?? []),
     estimatedBudgetPerDay: results
-      .map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`)
-      .join(" | "),
+      .map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`).join(" | "),
   };
 }
 
@@ -80,11 +76,12 @@ export default function Home() {
   const [lastForm, setLastForm]   = useState<TripFormData | null>(null);
   const [locale, setLocale]       = useState<Locale>("es");
   const [loadingCity, setLoadingCity] = useState("");
-
-  // ── Array de resultados por ciudad — clave para discriminar tabs ───────────
   const [cityResults, setCityResults] = useState<ItineraryData[]>([]);
 
-  // ── Handler destino único ──────────────────────────────────────────────────
+  // Guardamos los forms originales para poder hacer retry por ciudad
+  const [stopForms, setStopForms] = useState<TripFormData[]>([]);
+
+  // ── Destino único ──────────────────────────────────────────────────────────
   async function handleSubmit(form: TripFormData) {
     setLastForm(form);
     setLocale(form.locale);
@@ -92,18 +89,19 @@ export default function Home() {
     setState("loading");
     setError(null);
     setCityResults([]);
+    setStopForms([form]);
     try {
       const data = await fetchItinerary(form);
       setCityResults([data]);
       setItinerary(data);
       setState("result");
     } catch {
-      setError("No se pudo generar el itinerario. Por favor intenta de nuevo.");
+      setError("No se pudo generar el itinerario. Intenta de nuevo.");
       setState("landing");
     }
   }
 
-  // ── Handler múltiples ciudades ─────────────────────────────────────────────
+  // ── Múltiples ciudades — una llamada por ciudad con delay entre ellas ───────
   async function handleMultiSubmit(
     stops: { form: TripFormData; days: number }[],
     baseForm: TripFormData
@@ -114,20 +112,53 @@ export default function Home() {
     setState("loading");
     setError(null);
     setCityResults([]);
+    setStopForms(stops.map(s => s.form));
 
-    try {
-      const results: ItineraryData[] = [];
-      for (const stop of stops) {
-        setLoadingCity(`${stop.form.city}, ${stop.form.country}`);
+    const results: ItineraryData[] = [];
+    for (let i = 0; i < stops.length; i++) {
+      const stop = stops[i];
+      setLoadingCity(`${stop.form.city}, ${stop.form.country} (${i + 1}/${stops.length})`);
+
+      // Esperar entre ciudades para respetar el rate limit de Groq (6000 TPM)
+      if (i > 0) await wait(15000);
+
+      try {
         const data = await fetchItinerary(stop.form);
-        results.push(data);
+        if (data?.days?.length > 0) {
+          results.push(data);
+        }
+      } catch (err) {
+        console.error(`[multi] Error en ${stop.form.city}:`, err);
+        // Continuar con las demás ciudades aunque una falle
       }
-      setCityResults(results);
-      setItinerary(mergeItineraries(results));
-      setState("result");
-    } catch {
-      setError("No se pudo generar el itinerario. Por favor intenta de nuevo.");
+    }
+
+    if (results.length === 0) {
+      setError("No se pudo generar el itinerario. Intenta de nuevo.");
       setState("landing");
+      return;
+    }
+
+    setCityResults(results);
+    setItinerary(mergeItineraries(results));
+    setState("result");
+  }
+
+  // ── Retry de UNA ciudad que falló ─────────────────────────────────────────
+  // Se llama desde ItineraryView cuando el usuario pulsa "Reintentar" en una sección
+  async function handleRetryCity(cityIndex: number) {
+    const form = stopForms[cityIndex];
+    if (!form) return;
+    try {
+      const data = await fetchItinerary(form);
+      if (data?.days?.length > 0) {
+        const newResults = [...cityResults];
+        newResults[cityIndex] = data;
+        setCityResults(newResults);
+        setItinerary(mergeItineraries(newResults));
+      }
+    } catch (err) {
+      console.error(`[retry] Error en ${form.city}:`, err);
     }
   }
 
@@ -135,6 +166,7 @@ export default function Home() {
     setState("landing");
     setItinerary(null);
     setCityResults([]);
+    setStopForms([]);
     setError(null);
   }
 
@@ -184,6 +216,7 @@ export default function Home() {
           onReset={handleReset}
           form={lastForm}
           cityResults={cityResults}
+          onRetryCity={handleRetryCity}
         />
       )}
     </>
