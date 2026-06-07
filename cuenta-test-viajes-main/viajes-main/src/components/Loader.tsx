@@ -11,12 +11,17 @@ export default function Loader({ city, locale }: Props) {
   const [current, setCurrent] = useState(0);
   const steps = STEPS_KEYS.map((k) => t(k, locale));
 
+  // Reiniciar pasos cuando cambia la ciudad (multiciudad)
+  useEffect(() => {
+    setCurrent(0);
+  }, [city]);
+
   useEffect(() => {
     const id = setInterval(() => {
       setCurrent((prev) => (prev < steps.length - 1 ? prev + 1 : prev));
     }, 1400);
     return () => clearInterval(id);
-  }, [steps.length]);
+  }, [steps.length, city]);
 
   return (
     <div style={{
