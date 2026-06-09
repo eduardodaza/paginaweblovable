@@ -66,6 +66,11 @@ function mergeItineraries(results: ItineraryData[]): ItineraryData {
     hotels:      results.flatMap(r => r.hotels ?? []),
     estimatedBudgetPerDay: results
       .map(r => `${r.city}: ${r.estimatedBudgetPerDay ?? ""}`).join(" | "),
+    // Nuevas secciones: se toman de la primera ciudad (ciudad principal)
+    preparation:     results[0]?.preparation,
+    gastronomy:      results.flatMap(r => r.gastronomy ?? []),
+    tips:            results[0]?.tips,
+    budgetBreakdown: results[0]?.budgetBreakdown,
   };
 }
 
