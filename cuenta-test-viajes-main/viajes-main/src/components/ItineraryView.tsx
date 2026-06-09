@@ -32,6 +32,73 @@ const HOTEL_COLORS: Record<string, { accent: string; label: string }> = {
   "Kayak":       { accent: "#ff690f", label: "Kayak" },
 };
 
+
+// ── WikiPhoto — foto real desde Wikimedia Commons (gratuito, sin API key) ─────
+// Busca la imagen más relevante por nombre exacto del lugar/plato.
+// Si no encuentra nada muestra un placeholder con emoji.
+function WikiPhoto({ query, width, height, radius, emoji }: {
+  query: string; width: number; height: number; radius: number; emoji?: string;
+}) {
+  const [src, setSrc] = React.useState<string | null>(null);
+  const [failed, setFailed] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!query) return;
+    let cancelled = false;
+    const encoded = encodeURIComponent(query.trim());
+    // Wikimedia Commons API: busca el primer resultado y obtiene su thumbnail
+    fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encoded}&prop=pageimages&format=json&pithumbsize=${Math.max(width,height)*2}&origin=*`)
+      .then(r => r.json())
+      .then(data => {
+        if (cancelled) return;
+        const pages = data?.query?.pages ?? {};
+        const page = Object.values(pages)[0] as { thumbnail?: { source: string } };
+        if (page?.thumbnail?.source) {
+          setSrc(page.thumbnail.source);
+        } else {
+          // fallback: buscar en Wikimedia Commons directamente
+          return fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch=${encoded}&prop=imageinfo&iiprop=url&iiurlwidth=${Math.max(width,height)*2}&format=json&origin=*`)
+            .then(r => r.json())
+            .then(d2 => {
+              if (cancelled) return;
+              const pages2 = d2?.query?.pages ?? {};
+              const first = Object.values(pages2)[0] as { imageinfo?: { thumburl: string }[] };
+              if (first?.imageinfo?.[0]?.thumburl) {
+                setSrc(first.imageinfo[0].thumburl);
+              } else {
+                setFailed(true);
+              }
+            });
+        }
+      })
+      .catch(() => { if (!cancelled) setFailed(true); });
+    return () => { cancelled = true; };
+  }, [query, width, height]);
+
+  const style: React.CSSProperties = {
+    width, height, borderRadius: radius, overflow: "hidden", flexShrink: 0,
+    background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center",
+    justifyContent: "center", fontSize: Math.round(height * 0.4),
+  };
+
+  if (failed || (!src && query === "")) {
+    return <div style={style}>{emoji ?? "🏛"}</div>;
+  }
+  if (!src) {
+    // skeleton loader
+    return (
+      <div style={{ ...style, background: "linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%)", backgroundSize: "200% 100%", animation: "iv-shimmer 1.4s infinite" }}>
+      </div>
+    );
+  }
+  return (
+    <div style={style}>
+      <img src={src} alt={query} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.88 }}
+        onError={() => setFailed(true)} />
+    </div>
+  );
+}
+
 interface Props {
   data: ItineraryData;
   locale: Locale;
@@ -54,10 +121,12 @@ const GLOBAL_CSS = `
   @keyframes iv-ping { 0%,100%{transform:scale(1);opacity:.5} 50%{transform:scale(2);opacity:0} }
   @keyframes iv-fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
+  @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
-  const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security">("days");
+  const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security"|"preparation"|"gastronomy"|"tips"|"budget">("days");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const totalDays = (data.days ?? []).length;
 
   // Set con TODOS los índices siempre — garantiza que todos los días estén abiertos
@@ -102,12 +171,16 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
   }
 
   const tabs: { key: typeof tab; icon: string; label: string }[] = [
-    { key: "days",        icon: "📅", label: t("days", locale) },
-    { key: "restaurants", icon: "🍽️", label: t("restaurants", locale) },
-    { key: "events",      icon: "🎭", label: t("events", locale) },
+    { key: "days",        icon: "📅", label: locale === "es" ? "Días" : "Days" },
+    { key: "restaurants", icon: "🍽️", label: locale === "es" ? "Restaurantes" : "Restaurants" },
+    { key: "events",      icon: "🎭", label: locale === "es" ? "Eventos" : "Events" },
     { key: "hotels",      icon: "🏨", label: "Hotels" },
     { key: "extras",      icon: "✈️", label: "Vuelos · Tours" },
-    { key: "security",    icon: "🛡️", label: t("security", locale) },
+    { key: "security",    icon: "🛡️", label: locale === "es" ? "Seguridad" : "Safety" },
+    { key: "preparation", icon: "🎒", label: locale === "es" ? "Preparación" : "Preparation" },
+    { key: "gastronomy",  icon: "🍜", label: locale === "es" ? "Gastronomía" : "Gastronomy" },
+    { key: "tips",        icon: "💡", label: locale === "es" ? "Consejos" : "Tips" },
+    { key: "budget",      icon: "💰", label: locale === "es" ? "Presupuesto" : "Budget" },
   ];
 
   return (
@@ -126,8 +199,11 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         {/* ── HEADER ── */}
         <div style={{ paddingTop: 32, paddingBottom: 20 }}>
 
-          {/* Barra superior: botón volver */}
-          <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 20 }}>
+          {/* Barra superior: botón volver + sidebar */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+            <button onClick={() => setSidebarOpen(true)} className="iv-btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 16 }}>☰</span> {locale === "es" ? "Menú" : "Menu"}
+            </button>
             <button onClick={onReset} className="iv-btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <span style={{ fontSize: 14 }}>←</span> {t("newSearch", locale)}
             </button>
@@ -320,7 +396,53 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             : <SecurityPanel alerts={data.alerts} locale={locale} />
         )}
 
-        {/* ── EDIT MODAL ── */}
+        {/* ── PREPARATION ── */}
+        {tab === "preparation" && (
+          <PreparationPanel preparation={data.preparation} locale={locale} />
+        )}
+
+        {/* ── GASTRONOMY ── */}
+        {tab === "gastronomy" && (
+          <GastronomyPanel gastronomy={data.gastronomy} locale={locale} />
+        )}
+
+        {/* ── TIPS ── */}
+        {tab === "tips" && (
+          <TipsPanel tips={data.tips} locale={locale} />
+        )}
+
+        {/* ── BUDGET BREAKDOWN ── */}
+        {tab === "budget" && (
+          <BudgetPanel budgetBreakdown={data.budgetBreakdown} estimatedBudgetPerDay={data.estimatedBudgetPerDay} locale={locale} form={form} />
+        )}
+
+        {/* ── SIDEBAR OVERLAY ── */}
+        {sidebarOpen && (
+          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex" }}
+            onClick={() => setSidebarOpen(false)}>
+            <div style={{ width: 260, background: "hsl(240 45% 10%)", borderRight: "1px solid rgba(255,255,255,0.1)", height: "100%", overflowY: "auto", padding: "24px 0", backdropFilter: "blur(20px)" }}
+              onClick={e => e.stopPropagation()}>
+              <div style={{ padding: "0 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 8 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{data.city}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{data.country}</div>
+              </div>
+              {tabs.map(tb => {
+                const active = tab === tb.key;
+                return (
+                  <button key={tb.key}
+                    onClick={() => { setTab(tb.key); setSidebarOpen(false); }}
+                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 20px", border: "none", background: active ? "rgba(255,255,255,0.08)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.55)", cursor: "pointer", fontSize: 13, fontWeight: active ? 600 : 400, borderLeft: active ? "3px solid hsl(12 85% 55%)" : "3px solid transparent", transition: "all 0.15s", textAlign: "left" }}>
+                    <span style={{ fontSize: 16 }}>{tb.icon}</span>
+                    {tb.label}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ flex: 1, background: "rgba(0,0,0,0.5)" }} />
+          </div>
+        )}
+
+                {/* ── EDIT MODAL ── */}
         {editModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }}>
             <div style={{
@@ -488,8 +610,15 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                     {displayItem.type}
                   </span>
 
-                  <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
-                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}>{displayItem.description}</div>
+                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
+                      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}>{displayItem.description}</div>
+                    </div>
+                    {isSight && (
+                      <WikiPhoto query={name} width={70} height={70} radius={12} emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : "🏛️"} />
+                    )}
+                  </div>
 
                   {displayItem.wikidataDescription && (
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
@@ -664,21 +793,28 @@ function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["e
       {events.map((ev, i) => {
         const dotColor = ev.type === "concert" ? "hsl(12 85% 60%)" : ev.type === "permanent" ? "hsl(160 70% 50%)" : "hsl(280 70% 65%)";
         return (
-          <div key={i} style={{ padding: "14px 0", borderBottom: i < events.length - 1 ? "1px solid rgba(255,255,255,0.06)" : "none", display: "flex", gap: 14 }}>
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: dotColor, marginTop: 5, flexShrink: 0, boxShadow: `0 0 8px ${dotColor}` }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ev.name}</div>
-              <div style={{ fontSize: 12, color: "hsl(280 70% 70%)", marginTop: 3 }}>📅 {ev.when} {ev.venue ? `· ${ev.venue}` : ""}</div>
-              {ev.source && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>via {ev.source}</div>}
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.65 }}>{ev.description}</div>
-              <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                <span style={{ fontSize: 11, background: "hsl(280 70% 50%/0.2)", color: "hsl(280 70% 72%)", padding: "3px 10px", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.3)" }}>{ev.price}</span>
-                {ev.ticketUrl && (
-                  <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
-                    style={{ fontSize: 11, padding: "5px 14px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 10, textDecoration: "none", fontWeight: 600, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
-                    🎟 {t("bookNow", locale)} ↗
-                  </a>
-                )}
+          <div key={i} className="iv-card-inner iv-animate" style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
+            <div style={{ display: "flex", gap: 0 }}>
+              {/* Foto de referencia del evento */}
+              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={90} height={90} radius={0} emoji="🎭" />
+              {/* Contenido */}
+              <div style={{ flex: 1, padding: "12px 14px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ev.name}</div>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)", whiteSpace: "nowrap" }}>{ev.price}</span>
+                </div>
+                <div style={{ fontSize: 12, color: "hsl(280 70% 70%)", marginTop: 3 }}>📅 {ev.when} {ev.venue ? `· ${ev.venue}` : ""}</div>
+                {ev.source && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>via {ev.source}</div>}
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.55 }}>{ev.description}</div>
+                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  <span style={{ fontSize: 10, background: "hsl(280 70% 50%/0.2)", color: "hsl(280 70% 72%)", padding: "2px 9px", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{ev.type}</span>
+                  {ev.ticketUrl && (
+                    <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ fontSize: 11, padding: "5px 14px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 10, textDecoration: "none", fontWeight: 600, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
+                      🎟 {locale === "es" ? "Reservar" : "Book"} ↗
+                    </a>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -842,5 +978,244 @@ function RestaurantsPanel({ restaurants, locale, city }: { restaurants: Itinerar
         );
       })}
     </>
+  );
+}
+
+// ── PreparationPanel ──────────────────────────────────────────────────────────
+function PreparationPanel({ preparation, locale }: { preparation?: import("@/lib/types").PrepItem[]; locale: Locale }) {
+  if (!preparation?.length) return (
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>🎒</div>
+      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando consejos de preparación..." : "Loading preparation tips..."}</div>
+    </div>
+  );
+
+  const categoryColors: Record<string, string> = {
+    document: "hsl(200 80% 55%)",
+    health: "hsl(160 70% 50%)",
+    money: "hsl(38 95% 60%)",
+    transport: "hsl(280 70% 65%)",
+    connectivity: "hsl(12 85% 60%)",
+    packing: "hsl(320 70% 65%)",
+    other: "rgba(255,255,255,0.5)",
+  };
+
+  return (
+    <div className="iv-animate">
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          🎒 {locale === "es" ? "Preparación del viaje" : "Trip Preparation"}
+        </h3>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
+          {locale === "es" ? "Lo que necesitas tener listo antes de salir" : "Everything you need ready before departure"}
+        </p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+        {preparation.map((item, i) => {
+          const color = categoryColors[item.category] ?? categoryColors.other;
+          return (
+            <div key={i} className="iv-card-inner" style={{ borderLeft: `3px solid ${color}66`, display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ fontSize: 28, flexShrink: 0, marginTop: 2 }}>{item.icon}</div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{item.title}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.65 }}>{item.description}</div>
+                <span style={{ display: "inline-block", marginTop: 8, fontSize: 10, padding: "2px 9px", borderRadius: 8, background: `${color}22`, color, border: `1px solid ${color}44`, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+                  {item.category}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── GastronomyPanel ───────────────────────────────────────────────────────────
+function GastronomyPanel({ gastronomy, locale }: { gastronomy?: import("@/lib/types").GastronomyItem[]; locale: Locale }) {
+  if (!gastronomy?.length) return (
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>🍜</div>
+      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando gastronomía local..." : "Loading local gastronomy..."}</div>
+    </div>
+  );
+
+  const priceColors: Record<string, string> = { "$": "hsl(160 70% 50%)", "$$": "hsl(38 95% 60%)", "$$$": "hsl(280 70% 65%)" };
+
+  return (
+    <div className="iv-animate">
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          🍜 {locale === "es" ? "Gastronomía local · Platos imperdibles" : "Local Gastronomy · Must-Try Dishes"}
+        </h3>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
+          {locale === "es" ? "Sabores auténticos que no puedes dejar de probar" : "Authentic flavours you cannot miss"}
+        </p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 12 }}>
+        {gastronomy.map((item, i) => {
+          const priceColor = priceColors[item.priceRange ?? "$$"] ?? "hsl(38 95% 60%)";
+          return (
+            <div key={i} className="iv-card" style={{ padding: 0, overflow: "hidden", position: "relative" }}>
+              {item.mustTry && (
+                <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2, background: "linear-gradient(135deg,hsl(38 95% 55%),hsl(12 85% 55%))", color: "white", fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 10 }}>
+                  ★ {locale === "es" ? "Imprescindible" : "Must Try"}
+                </div>
+              )}
+              <WikiPhoto query={item.city ? item.name + " " + item.city + " food" : item.name + " dish"} width={400} height={140} radius={0} emoji="🍽️" />
+              <div style={{ padding: "14px 16px" }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{item.name}</div>
+                {item.city && <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>📍 {item.city}</div>}
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.65 }}>{item.description}</div>
+                {item.priceRange && (
+                  <span style={{ display: "inline-block", marginTop: 10, fontSize: 12, color: priceColor, fontWeight: 700, padding: "3px 10px", borderRadius: 8, background: `${priceColor}22`, border: `1px solid ${priceColor}44` }}>
+                    {item.priceRange}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── TipsPanel ─────────────────────────────────────────────────────────────────
+function TipsPanel({ tips, locale }: { tips?: import("@/lib/types").TipItem[]; locale: Locale }) {
+  if (!tips?.length) return (
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+      <div style={{ fontSize: 40, marginBottom: 10 }}>💡</div>
+      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando consejos útiles..." : "Loading useful tips..."}</div>
+    </div>
+  );
+
+  const catColor: Record<string, string> = {
+    transport: "hsl(200 80% 55%)",
+    safety: "hsl(0 75% 65%)",
+    culture: "hsl(280 70% 65%)",
+    money: "hsl(38 95% 60%)",
+    tech: "hsl(160 70% 50%)",
+    general: "rgba(255,255,255,0.5)",
+  };
+
+  return (
+    <div className="iv-animate">
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          💡 {locale === "es" ? "Consejos útiles para tu viaje" : "Useful Tips for Your Trip"}
+        </h3>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
+          {locale === "es" ? "Conocimiento local para viajar mejor" : "Local knowledge to travel smarter"}
+        </p>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+        {tips.map((tip, i) => {
+          const color = catColor[tip.category] ?? catColor.general;
+          return (
+            <div key={i} className="iv-card-inner" style={{ display: "flex", gap: 14, alignItems: "flex-start" }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: `${color}22`, border: `1px solid ${color}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 20, flexShrink: 0 }}>
+                {tip.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>{tip.title}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.65 }}>{tip.description}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── BudgetPanel ───────────────────────────────────────────────────────────────
+function BudgetPanel({ budgetBreakdown, estimatedBudgetPerDay, locale, form }: {
+  budgetBreakdown?: import("@/lib/types").BudgetBreakdown;
+  estimatedBudgetPerDay?: string;
+  locale: Locale;
+  form?: import("@/lib/types").TripFormData | null;
+}) {
+  const rows = budgetBreakdown ? [
+    { label: locale === "es" ? "🏨 Alojamiento" : "🏨 Accommodation", value: budgetBreakdown.accommodation },
+    { label: locale === "es" ? "🚗 Transporte" : "🚗 Transport", value: budgetBreakdown.transport },
+    { label: locale === "es" ? "🍽️ Comidas y restaurantes" : "🍽️ Food & Restaurants", value: budgetBreakdown.food },
+    { label: locale === "es" ? "🎭 Actividades y entradas" : "🎭 Activities & Tickets", value: budgetBreakdown.activities },
+  ] : [];
+
+  return (
+    <div className="iv-animate">
+      <div style={{ marginBottom: 20 }}>
+        <h3 style={{ fontSize: 18, fontWeight: 700, color: "#fff", display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
+          💰 {locale === "es" ? "Presupuesto estimado del viaje" : "Estimated Trip Budget"}
+        </h3>
+        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 6 }}>
+          {locale === "es"
+            ? `Estimación para ${form?.travelers ?? 1} persona(s) · ${form?.budget ?? "moderado"}`
+            : `Estimate for ${form?.travelers ?? 1} traveler(s) · ${form?.budget ?? "moderate"}`}
+        </p>
+      </div>
+
+      {/* Presupuesto por día */}
+      {estimatedBudgetPerDay && (
+        <div className="iv-card" style={{ marginBottom: 12, background: "hsl(160 60% 20% / 0.2)", border: "1px solid hsl(160 70% 50% / 0.3)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div>
+              <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.1em" }}>
+                {locale === "es" ? "Presupuesto diario estimado" : "Estimated daily budget"}
+              </div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: "#fff", marginTop: 4 }}>{estimatedBudgetPerDay}</div>
+            </div>
+            <div style={{ fontSize: 36 }}>📊</div>
+          </div>
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>
+            {locale === "es" ? "por persona · por día (estimación)" : "per person · per day (estimate)"}
+          </div>
+        </div>
+      )}
+
+      {/* Desglose total */}
+      {budgetBreakdown ? (
+        <div className="iv-card">
+          <div style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16, marginBottom: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+              {locale === "es" ? "Desglose total del viaje" : "Total trip breakdown"}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {rows.map((row, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{row.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{row.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
+            <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+              {locale === "es" ? "Total estimado" : "Estimated total"}
+            </span>
+            <span style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg,hsl(38 95% 65%),hsl(12 85% 65%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              {budgetBreakdown.total}
+            </span>
+          </div>
+          {budgetBreakdown.notes && (
+            <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 8, padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 10, borderLeft: "3px solid rgba(255,255,255,0.1)", lineHeight: 1.6 }}>
+              💡 {budgetBreakdown.notes}
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2rem" }}>
+          <div style={{ fontSize: 13 }}>{locale === "es" ? "Generando desglose de presupuesto..." : "Generating budget breakdown..."}</div>
+        </div>
+      )}
+
+      {/* Nota aclaratoria */}
+      <div style={{ marginTop: 12, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.65 }}>
+        ⚠️ {locale === "es"
+          ? "Valores aproximados. Los precios reales pueden variar según temporada, disponibilidad y tipo de cambio al momento del viaje."
+          : "Approximate values. Actual prices may vary based on season, availability, and exchange rate at the time of travel."}
+      </div>
+    </div>
   );
 }
