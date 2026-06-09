@@ -122,11 +122,24 @@ const GLOBAL_CSS = `
   @keyframes iv-fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
   @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+  .iv-layout { display: flex; min-height: 100vh; }
+  .iv-sidebar { width: 220px; min-width: 220px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: rgba(10,8,24,0.85); border-right: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(20px); z-index: 10; padding: 0 0 40px; flex-shrink: 0; }
+  .iv-sidebar::-webkit-scrollbar { width: 4px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  .iv-main { flex: 1; min-width: 0; padding: 0 28px 80px; }
+  .iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 18px; border: none; background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 13px; font-weight: 400; border-left: 3px solid transparent; transition: all 0.15s; text-align: left; white-space: nowrap; }
+  .iv-nav-btn:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
+  .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
+  .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
+  .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+  .iv-day-item { display: flex; gap: 0; margin-bottom: 16px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; }
+  .iv-day-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); }
+  .iv-day-photo { width: 140px; min-height: 120px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
+  .iv-day-body { flex: 1; padding: 14px 16px; min-width: 0; }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 90px; } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security"|"preparation"|"gastronomy"|"tips"|"budget">("days");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const totalDays = (data.days ?? []).length;
 
   // Set con TODOS los índices siempre — garantiza que todos los días estén abiertos
@@ -194,19 +207,43 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         <div style={{ position: "absolute", inset: 0, backgroundImage: "radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px)", backgroundSize: "40px 40px" }} />
       </div>
 
-      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 32px 80px", position: "relative", zIndex: 1 }}>
+      {/* ── LAYOUT: SIDEBAR + MAIN ── */}
+      <div className="iv-layout" style={{ position: "relative", zIndex: 1 }}>
+
+        {/* ── SIDEBAR FIJO IZQUIERDO ── */}
+        <nav className="iv-sidebar">
+          {/* Logo / título */}
+          <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: "hsl(38 95% 65%)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 4 }}>✦ TripCraft AI</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}>{data.city}</div>
+            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{data.country}</div>
+          </div>
+          {tabs.map(tb => (
+            <button key={tb.key}
+              className={`iv-nav-btn${tab === tb.key ? " active" : ""}`}
+              onClick={() => setTab(tb.key)}>
+              <span style={{ fontSize: 15, width: 20, textAlign: "center" }}>{tb.icon}</span>
+              {tb.label}
+            </button>
+          ))}
+          {/* Botón volver */}
+          <div style={{ padding: "14px 18px 0", marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+            <button onClick={onReset}
+              style={{ width: "100%", padding: "8px 0", fontSize: 12, borderRadius: 10, cursor: "pointer", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)", transition: "all 0.2s" }}>
+              ← {t("newSearch", locale)}
+            </button>
+          </div>
+        </nav>
+
+        {/* ── MAIN CONTENT ── */}
+        <div className="iv-main">
 
         {/* ── HEADER ── */}
-        <div style={{ paddingTop: 32, paddingBottom: 20 }}>
+        <div style={{ paddingTop: 28, paddingBottom: 16 }}>
 
-          {/* Barra superior: botón volver + sidebar */}
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <button onClick={() => setSidebarOpen(true)} className="iv-btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 16 }}>☰</span> {locale === "es" ? "Menú" : "Menu"}
-            </button>
-            <button onClick={onReset} className="iv-btn-ghost" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <span style={{ fontSize: 14 }}>←</span> {t("newSearch", locale)}
-            </button>
+          {/* Barra superior solo en mobile */}
+          <div style={{ display: "none" }}>
+            <button onClick={onReset} className="iv-btn-ghost">← {t("newSearch", locale)}</button>
           </div>
 
           {/* Tarjeta hero de ciudad */}
@@ -270,7 +307,7 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
         </div>
 
         {/* ── TABS ── */}
-        <div style={{ display: "flex", gap: 6, marginBottom: 16, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+        <div className="iv-tabs-scroll" style={{ marginBottom: 16 }}>
           {tabs.map(tb => {
             const active = tab === tb.key;
             return (
@@ -416,32 +453,6 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
           <BudgetPanel budgetBreakdown={data.budgetBreakdown} estimatedBudgetPerDay={data.estimatedBudgetPerDay} locale={locale} form={form} />
         )}
 
-        {/* ── SIDEBAR OVERLAY ── */}
-        {sidebarOpen && (
-          <div style={{ position: "fixed", inset: 0, zIndex: 200, display: "flex" }}
-            onClick={() => setSidebarOpen(false)}>
-            <div style={{ width: 260, background: "hsl(240 45% 10%)", borderRight: "1px solid rgba(255,255,255,0.1)", height: "100%", overflowY: "auto", padding: "24px 0", backdropFilter: "blur(20px)" }}
-              onClick={e => e.stopPropagation()}>
-              <div style={{ padding: "0 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.08)", marginBottom: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", marginBottom: 2 }}>{data.city}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{data.country}</div>
-              </div>
-              {tabs.map(tb => {
-                const active = tab === tb.key;
-                return (
-                  <button key={tb.key}
-                    onClick={() => { setTab(tb.key); setSidebarOpen(false); }}
-                    style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "12px 20px", border: "none", background: active ? "rgba(255,255,255,0.08)" : "transparent", color: active ? "#fff" : "rgba(255,255,255,0.55)", cursor: "pointer", fontSize: 13, fontWeight: active ? 600 : 400, borderLeft: active ? "3px solid hsl(12 85% 55%)" : "3px solid transparent", transition: "all 0.15s", textAlign: "left" }}>
-                    <span style={{ fontSize: 16 }}>{tb.icon}</span>
-                    {tb.label}
-                  </button>
-                );
-              })}
-            </div>
-            <div style={{ flex: 1, background: "rgba(0,0,0,0.5)" }} />
-          </div>
-        )}
-
                 {/* ── EDIT MODAL ── */}
         {editModal && (
           <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 16, backdropFilter: "blur(8px)" }}>
@@ -521,7 +532,8 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             {data.generatedBy}
           </div>
         )}
-      </div>
+        </div>{/* /iv-main */}
+      </div>{/* /iv-layout */}
     </div>
   );
 }
@@ -581,7 +593,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
 
       {/* Items del día */}
       {open && (
-        <div style={{ padding: "0 28px" }}>
+        <div style={{ padding: "0 20px 12px" }}>
           {day.items.map(item => {
             const edit = edits[item.id] ?? {};
             const rep = edit.replacement;
@@ -593,88 +605,73 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               : item;
             const name = edit.name ?? displayItem.name;
             const bd = BADGE[displayItem.type] ?? BADGE.sight;
-            const isSight = ["sight","beach","event"].includes(displayItem.type);
+            const isSight = ["sight","beach","event","food","night"].includes(displayItem.type);
+            const isTransport = displayItem.type === "transport";
+
+            if (isTransport) return (
+              <div key={item.id} style={{ padding: "8px 12px", margin: "6px 0", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 10 }}>
+                <span style={{ fontSize: 11, fontFamily: "monospace", color: "rgba(255,255,255,0.3)", flexShrink: 0 }}>{item.time}</span>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>🚶 {name}</span>
+                {displayItem.duration && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.25)" }}>· {displayItem.duration}</span>}
+              </div>
+            );
 
             return (
-              <div key={item.id} className="iv-tl-row">
-                {/* Hora */}
-                <div style={{ fontFamily: "monospace", fontSize: 13, color: "rgba(255,255,255,0.4)", paddingTop: 3, textAlign: "right", fontWeight: 600 }}>
-                  {item.time}
+              <div key={item.id} className="iv-day-item">
+                {/* Foto grande izquierda */}
+                <div className="iv-day-photo">
+                  <WikiPhoto query={name} width={140} height={120} radius={0}
+                    emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
+                  {/* Overlay hora */}
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "4px 8px", background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.time}</span>
+                    {displayItem.duration && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginLeft: 6 }}>· {displayItem.duration}</span>}
+                  </div>
                 </div>
 
-                {/* Contenido */}
-                <div>
-                  {/* Badge tipo */}
-                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 10, marginBottom: 5, background: bd.bg, color: bd.color, fontWeight: 600, letterSpacing: "0.05em", border: `1px solid ${bd.color}33` }}>
-                    <span style={{ width: 5, height: 5, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
-                    {displayItem.type}
-                  </span>
-
-                  <div style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
-                      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.7 }}>{displayItem.description}</div>
-                    </div>
-                    {isSight && (
-                      <WikiPhoto query={name} width={70} height={70} radius={12} emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : "🏛️"} />
+                {/* Contenido derecha */}
+                <div className="iv-day-body">
+                  {/* Badge + precio */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 10, background: bd.bg, color: bd.color, fontWeight: 600, letterSpacing: "0.05em", border: `1px solid ${bd.color}33` }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
+                      {displayItem.type}
+                    </span>
+                    {displayItem.price && (
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
                     )}
                   </div>
 
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.58)", lineHeight: 1.65, marginBottom: 6 }}>{displayItem.description}</div>
+
                   {displayItem.wikidataDescription && (
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
+                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
                   )}
                   {edit.note && (
-                    <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", marginTop: 5, padding: "5px 10px", background: "hsl(160 60% 20%/0.25)", borderRadius: 8, border: "1px solid hsl(160 70%50%/0.2)" }}>📝 {edit.note}</div>
+                    <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", marginBottom: 5, padding: "4px 9px", background: "hsl(160 60% 20%/0.25)", borderRadius: 8, border: "1px solid hsl(160 70%50%/0.2)" }}>📝 {edit.note}</div>
                   )}
                   {displayItem.tip && (
-                    <div style={{ fontSize: 11, color: "hsl(280 70% 72%)", marginTop: 5, padding: "5px 10px", background: "hsl(280 70%50%/0.15)", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.2)" }}>💡 {displayItem.tip}</div>
+                    <div style={{ fontSize: 11, color: "hsl(280 70% 72%)", marginBottom: 6, padding: "4px 9px", background: "hsl(280 70%50%/0.15)", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.2)" }}>💡 {displayItem.tip}</div>
                   )}
 
                   {/* Meta pills */}
-                  <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
-                    {displayItem.duration && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>⏱ {displayItem.duration}</span>}
-                    {displayItem.transport && displayItem.type !== "transport" && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    {displayItem.transport && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
                     {displayItem.rating && <span style={{ fontSize: 11, color: "hsl(38 95% 65%)", fontWeight: 600 }}>★ {displayItem.rating}</span>}
-                    {displayItem.price && <span style={{ fontSize: 11, color: "hsl(160 70% 55%)", fontWeight: 600 }}>{displayItem.price}</span>}
+                    {isSight && displayItem.links?.googleMaps && (
+                      <a href={displayItem.links.googleMaps} target="_blank" rel="noopener noreferrer"
+                        className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>🗺 Maps</a>
+                    )}
+                    {displayItem.viatorUrl && (
+                      <a href={displayItem.viatorUrl} target="_blank" rel="noopener noreferrer"
+                        className="iv-link" style={{ border: "1px solid hsl(12 85% 55%/0.4)", color: "hsl(12 85% 65%)", background: "hsl(12 85% 55%/0.1)" }}>🎫 Reservar</a>
+                    )}
+                    <button onClick={() => onEdit(item)}
+                      style={{ fontSize: 11, padding: "3px 9px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", cursor: "pointer", marginLeft: "auto" }}>
+                      ✏️ Editar
+                    </button>
                   </div>
-
-                  {/* Links externos */}
-                  {isSight && displayItem.links && (
-                    <div style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                      {displayItem.links.googleMaps && (
-                        <a href={displayItem.links.googleMaps} target="_blank" rel="noopener noreferrer"
-                          className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>
-                          🗺 Maps
-                        </a>
-                      )}
-                      {displayItem.links.tripAdvisor && (
-                        <a href={displayItem.links.tripAdvisor} target="_blank" rel="noopener noreferrer"
-                          className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>
-                          ⭐ TripAdvisor
-                        </a>
-                      )}
-                      {displayItem.links.wikipedia && (
-                        <a href={displayItem.links.wikipedia} target="_blank" rel="noopener noreferrer"
-                          className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>
-                          📚 Wikipedia
-                        </a>
-                      )}
-                      {displayItem.viatorUrl && (
-                        <a href={displayItem.viatorUrl} target="_blank" rel="noopener noreferrer"
-                          className="iv-link" style={{ border: "1px solid hsl(12 85% 55%/0.4)", color: "hsl(12 85% 65%)", background: "hsl(12 85% 55%/0.1)" }}>
-                          🎫 Reservar tour
-                        </a>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Botón editar */}
-                  <button onClick={() => onEdit(item)}
-                    style={{ fontSize: 11, padding: "4px 10px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", cursor: "pointer", marginTop: 10, transition: "all 0.15s" }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.1)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.8)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,255,255,0.05)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,255,255,0.45)"; }}>
-                    ✏️ Editar itinerario
-                  </button>
                 </div>
               </div>
             );
@@ -785,42 +782,58 @@ function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["e
   if (!events?.length) return (
     <div style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2rem 0", fontSize: 13 }}>
       <div style={{ fontSize: 36, marginBottom: 10 }}>🎭</div>
-      No se encontraron eventos para estas fechas.
+      {locale === "es" ? "No se encontraron eventos para estas fechas." : "No events found for these dates."}
     </div>
   );
+
+  const typeColor: Record<string, string> = {
+    festival: "hsl(12 85% 60%)", concert: "hsl(280 70% 65%)", permanent: "hsl(160 70% 50%)",
+    sport: "hsl(200 80% 55%)", market: "hsl(38 95% 60%)", cinema: "hsl(320 70% 60%)",
+  };
+
   return (
-    <>
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
       {events.map((ev, i) => {
-        const dotColor = ev.type === "concert" ? "hsl(12 85% 60%)" : ev.type === "permanent" ? "hsl(160 70% 50%)" : "hsl(280 70% 65%)";
+        const tc = typeColor[ev.type] ?? "hsl(280 70% 65%)";
         return (
-          <div key={i} className="iv-card-inner iv-animate" style={{ marginBottom: 10, padding: 0, overflow: "hidden" }}>
-            <div style={{ display: "flex", gap: 0 }}>
-              {/* Foto de referencia del evento */}
-              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={90} height={90} radius={0} emoji="🎭" />
-              {/* Contenido */}
-              <div style={{ flex: 1, padding: "12px 14px" }}>
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
-                  <div style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{ev.name}</div>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)", whiteSpace: "nowrap" }}>{ev.price}</span>
-                </div>
-                <div style={{ fontSize: 12, color: "hsl(280 70% 70%)", marginTop: 3 }}>📅 {ev.when} {ev.venue ? `· ${ev.venue}` : ""}</div>
-                {ev.source && <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>via {ev.source}</div>}
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 4, lineHeight: 1.55 }}>{ev.description}</div>
-                <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                  <span style={{ fontSize: 10, background: "hsl(280 70% 50%/0.2)", color: "hsl(280 70% 72%)", padding: "2px 9px", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>{ev.type}</span>
-                  {ev.ticketUrl && (
-                    <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
-                      style={{ fontSize: 11, padding: "5px 14px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 10, textDecoration: "none", fontWeight: 600, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
-                      🎟 {locale === "es" ? "Reservar" : "Book"} ↗
-                    </a>
-                  )}
-                </div>
+          <div key={i} className="iv-card iv-animate" style={{ padding: 0, overflow: "hidden", cursor: ev.ticketUrl ? "pointer" : "default" }}
+            onClick={() => ev.ticketUrl && window.open(ev.ticketUrl, "_blank")}>
+            {/* Foto grande */}
+            <div style={{ height: 180, overflow: "hidden", position: "relative" }}>
+              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={400} height={180} radius={0} emoji="🎭" />
+              {/* Badge tipo encima */}
+              <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
+                <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 20, background: tc, color: "#fff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", boxShadow: `0 2px 8px ${tc}88` }}>
+                  {ev.type}
+                </span>
               </div>
+              {/* Precio encima derecha */}
+              <div style={{ position: "absolute", top: 10, right: 10, zIndex: 2 }}>
+                <span style={{ fontSize: 13, padding: "4px 12px", borderRadius: 20, background: "rgba(0,0,0,0.7)", color: "hsl(38 95% 65%)", fontWeight: 800, backdropFilter: "blur(8px)" }}>
+                  {ev.price}
+                </span>
+              </div>
+              {/* Gradiente inferior */}
+              <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, height: 60, background: "linear-gradient(to top, rgba(10,8,24,0.9) 0%, transparent 100%)" }} />
+            </div>
+
+            {/* Contenido */}
+            <div style={{ padding: "14px 16px 16px" }}>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{ev.name}</div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>📅 {ev.when}{ev.venue ? ` · ${ev.venue}` : ""}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 10 }}>{ev.description}</div>
+              {ev.ticketUrl && (
+                <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
+                  onClick={e => e.stopPropagation()}
+                  style={{ display: "inline-flex", alignItems: "center", gap: 6, fontSize: 12, padding: "8px 18px", background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "white", borderRadius: 20, textDecoration: "none", fontWeight: 700, boxShadow: "0 4px 12px hsl(12 85% 55%/0.4)" }}>
+                  🎟 {locale === "es" ? "Reservar entradas" : "Book tickets"} ↗
+                </a>
+              )}
             </div>
           </div>
         );
       })}
-    </>
+    </div>
   );
 }
 
@@ -984,9 +997,16 @@ function RestaurantsPanel({ restaurants, locale, city }: { restaurants: Itinerar
 // ── PreparationPanel ──────────────────────────────────────────────────────────
 function PreparationPanel({ preparation, locale }: { preparation?: import("@/lib/types").PrepItem[]; locale: Locale }) {
   if (!preparation?.length) return (
-    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: "2.5rem" }}>
       <div style={{ fontSize: 40, marginBottom: 10 }}>🎒</div>
-      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando consejos de preparación..." : "Loading preparation tips..."}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 8 }}>{locale === "es" ? "Sin datos de preparación" : "No preparation data"}</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 16, lineHeight: 1.6 }}>
+        {locale === "es" ? "Esta sección se genera junto al itinerario. Si no cargó, genera el itinerario de nuevo." : "This section is generated with the itinerary. If it didn't load, regenerate."}
+      </div>
+      <button onClick={() => window.location.reload()}
+        style={{ padding: "9px 24px", borderRadius: 20, background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 16px hsl(12 85% 55%/0.4)" }}>
+        🔄 {locale === "es" ? "Reintentar" : "Retry"}
+      </button>
     </div>
   );
 
@@ -1034,9 +1054,16 @@ function PreparationPanel({ preparation, locale }: { preparation?: import("@/lib
 // ── GastronomyPanel ───────────────────────────────────────────────────────────
 function GastronomyPanel({ gastronomy, locale }: { gastronomy?: import("@/lib/types").GastronomyItem[]; locale: Locale }) {
   if (!gastronomy?.length) return (
-    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: "2.5rem" }}>
       <div style={{ fontSize: 40, marginBottom: 10 }}>🍜</div>
-      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando gastronomía local..." : "Loading local gastronomy..."}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 8 }}>{locale === "es" ? "Sin datos de gastronomía" : "No gastronomy data"}</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 16, lineHeight: 1.6 }}>
+        {locale === "es" ? "Esta sección se genera junto al itinerario. Si no cargó, genera el itinerario de nuevo." : "This section is generated with the itinerary. If it didn't load, regenerate."}
+      </div>
+      <button onClick={() => window.location.reload()}
+        style={{ padding: "9px 24px", borderRadius: 20, background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 16px hsl(12 85% 55%/0.4)" }}>
+        🔄 {locale === "es" ? "Reintentar" : "Retry"}
+      </button>
     </div>
   );
 
@@ -1084,9 +1111,16 @@ function GastronomyPanel({ gastronomy, locale }: { gastronomy?: import("@/lib/ty
 // ── TipsPanel ─────────────────────────────────────────────────────────────────
 function TipsPanel({ tips, locale }: { tips?: import("@/lib/types").TipItem[]; locale: Locale }) {
   if (!tips?.length) return (
-    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.35)", padding: "2.5rem" }}>
+    <div className="iv-card" style={{ textAlign: "center", color: "rgba(255,255,255,0.4)", padding: "2.5rem" }}>
       <div style={{ fontSize: 40, marginBottom: 10 }}>💡</div>
-      <div style={{ fontSize: 14 }}>{locale === "es" ? "Cargando consejos útiles..." : "Loading useful tips..."}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "#fff", marginBottom: 8 }}>{locale === "es" ? "Sin consejos cargados" : "No tips loaded"}</div>
+      <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 16, lineHeight: 1.6 }}>
+        {locale === "es" ? "Esta sección se genera junto al itinerario. Si no cargó, genera el itinerario de nuevo." : "This section is generated with the itinerary. If it didn't load, regenerate."}
+      </div>
+      <button onClick={() => window.location.reload()}
+        style={{ padding: "9px 24px", borderRadius: 20, background: "linear-gradient(135deg,hsl(12 85% 55%),hsl(38 95% 58%))", color: "#fff", fontWeight: 700, fontSize: 13, border: "none", cursor: "pointer", boxShadow: "0 4px 16px hsl(12 85% 55%/0.4)" }}>
+        🔄 {locale === "es" ? "Reintentar" : "Retry"}
+      </button>
     </div>
   );
 
@@ -1137,10 +1171,10 @@ function BudgetPanel({ budgetBreakdown, estimatedBudgetPerDay, locale, form }: {
   form?: import("@/lib/types").TripFormData | null;
 }) {
   const rows = budgetBreakdown ? [
-    { label: locale === "es" ? "🏨 Alojamiento" : "🏨 Accommodation", value: budgetBreakdown.accommodation },
-    { label: locale === "es" ? "🚗 Transporte" : "🚗 Transport", value: budgetBreakdown.transport },
-    { label: locale === "es" ? "🍽️ Comidas y restaurantes" : "🍽️ Food & Restaurants", value: budgetBreakdown.food },
-    { label: locale === "es" ? "🎭 Actividades y entradas" : "🎭 Activities & Tickets", value: budgetBreakdown.activities },
+    { label: locale === "es" ? "Alojamiento" : "Accommodation", icon: "🏨", value: budgetBreakdown.accommodation },
+    { label: locale === "es" ? "Transporte" : "Transport", icon: "🚗", value: budgetBreakdown.transport },
+    { label: locale === "es" ? "Comidas y restaurantes" : "Food & Restaurants", icon: "🍽️", value: budgetBreakdown.food },
+    { label: locale === "es" ? "Eventos y actividades" : "Events & Activities", icon: "🎭", value: budgetBreakdown.activities },
   ] : [];
 
   return (
@@ -1177,26 +1211,28 @@ function BudgetPanel({ budgetBreakdown, estimatedBudgetPerDay, locale, form }: {
       {/* Desglose total */}
       {budgetBreakdown ? (
         <div className="iv-card">
-          <div style={{ borderBottom: "1px solid rgba(255,255,255,0.08)", paddingBottom: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.5)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 12 }}>
+          <div style={{ marginBottom: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.4)", textTransform: "uppercase", letterSpacing: "0.12em", marginBottom: 10 }}>
               {locale === "es" ? "Desglose total del viaje" : "Total trip breakdown"}
             </div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            <div style={{ display: "flex", flexDirection: "column" }}>
               {rows.map((row, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
-                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.7)" }}>{row.label}</span>
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span>{(row as {icon:string}).icon}</span>{row.label}
+                  </span>
                   <span style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{row.value}</span>
                 </div>
               ))}
             </div>
-          </div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0" }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
-              {locale === "es" ? "Total estimado" : "Estimated total"}
-            </span>
-            <span style={{ fontSize: 20, fontWeight: 800, background: "linear-gradient(135deg,hsl(38 95% 65%),hsl(12 85% 65%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
-              {budgetBreakdown.total}
-            </span>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0 0", marginTop: 2 }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: "#fff" }}>
+                {locale === "es" ? "Total estimado" : "Estimated total"}
+              </span>
+              <span style={{ fontSize: 22, fontWeight: 800, background: "linear-gradient(135deg,hsl(38 95% 65%),hsl(12 85% 65%))", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+                {budgetBreakdown.total}
+              </span>
+            </div>
           </div>
           {budgetBreakdown.notes && (
             <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 8, padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 10, borderLeft: "3px solid rgba(255,255,255,0.1)", lineHeight: 1.6 }}>
