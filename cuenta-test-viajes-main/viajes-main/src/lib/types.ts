@@ -100,6 +100,40 @@ export interface Hotel {
   platform?: string;
 }
 
+// ─── New enrichment types ──────────────────────────────────────
+
+export interface PrepItem {
+  icon: string;        // emoji
+  title: string;
+  description: string;
+  category: "document" | "health" | "money" | "transport" | "connectivity" | "packing" | "other";
+}
+
+export interface GastronomyItem {
+  name: string;
+  description: string;
+  mustTry: boolean;
+  city?: string;       // ciudad donde encontrarlo (útil en multitrip)
+  priceRange?: "$" | "$$" | "$$$";
+}
+
+export interface TipItem {
+  icon: string;        // emoji
+  title: string;
+  description: string;
+  category: "transport" | "safety" | "culture" | "money" | "tech" | "general";
+}
+
+export interface BudgetBreakdown {
+  accommodation: string;  // "COL$ 6,500,000" o "€ 1,200"
+  transport: string;
+  food: string;
+  activities: string;
+  total: string;
+  currency: string;       // "COP", "EUR", "USD", etc.
+  notes?: string;
+}
+
 export interface ItineraryData {
   city: string;
   country: string;
@@ -118,6 +152,11 @@ export interface ItineraryData {
   hotels?: Hotel[];
   generatedBy?: string;
   cityWikipediaExtract?: string;
+  // ── Nuevas secciones ──
+  preparation?: PrepItem[];
+  gastronomy?: GastronomyItem[];
+  tips?: TipItem[];
+  budgetBreakdown?: BudgetBreakdown;
 }
 
 // ─── Form / Input types ────────────────────────────────────────
