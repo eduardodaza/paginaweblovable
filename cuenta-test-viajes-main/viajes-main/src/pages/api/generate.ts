@@ -496,6 +496,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       events:                (metadata.events              as Event[]) ?? [],
       alerts:                (metadata.alerts              as ItineraryData["alerts"]) ?? [],
       hotels:                buildHotelLinks(form),
+      preparation:           (metadata.preparation         as ItineraryData["preparation"]) ?? [],
+      gastronomy:            (metadata.gastronomy          as ItineraryData["gastronomy"])  ?? [],
+      tips:                  (metadata.tips                as ItineraryData["tips"])         ?? [],
+      budgetBreakdown:       (metadata.budgetBreakdown     as ItineraryData["budgetBreakdown"]) ?? undefined,
     };
 
     // ── Wikidata enrichment ───────────────────────────────────
