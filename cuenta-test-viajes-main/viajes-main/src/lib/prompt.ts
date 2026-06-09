@@ -174,14 +174,39 @@ Respond ONLY with a valid JSON object (no markdown, no backticks):
   ],
   "alerts": [
     {"level":"medio","zone":"zone","description":"safety note","tip":"practical tip"}
-  ]
+  ],
+  "preparation": [
+    {"icon":"🔌","title":"Power Adapter","description":"Specific advice","category":"packing"},
+    {"icon":"💊","title":"Vaccines","description":"Required or recommended","category":"health"}
+  ],
+  "gastronomy": [
+    {"name":"Iconic Dish","description":"1 sentence about it","mustTry":true,"city":"${form.city}","priceRange":"$$"},
+    {"name":"Local Drink","description":"1 sentence","mustTry":false,"city":"${form.city}","priceRange":"$"}
+  ],
+  "tips": [
+    {"icon":"🚇","title":"Metro tip","description":"Practical advice","category":"transport"},
+    {"icon":"💳","title":"Money tip","description":"Practical advice","category":"money"}
+  ],
+  "budgetBreakdown": {
+    "accommodation":"realistic total for ${form.travelers} person(s) ${totalDays} nights",
+    "transport":"realistic total",
+    "food":"realistic total",
+    "activities":"realistic total",
+    "total":"sum of all",
+    "currency":"local currency code",
+    "notes":"optional brief note"
+  }
 }
 
 CONSTRAINTS:
 - restaurants: exactly ${minResto}–${maxResto} real entries. dayHint 1..${totalDays}. At least 3/day (breakfast+lunch+dinner). Budget-consistent prices.
 - events: ≥4 real entries. Include festivals/traditions in ${form.city} for ${startMonth}. Include iconic recurring shows if nothing special. For paid events (concerts, sports, shows) set ticketUrl to the real official ticket URL. Free events: ticketUrl="".
 - alerts: 2–4 entries.
-- All must be REAL places/events in ${form.city}, ${form.country}.`;
+- preparation: 5–7 REAL practical items for ${form.city} trip. Specific to destination and traveler type.
+- gastronomy: 5–8 must-try local dishes/drinks of ${form.city}/${form.country}. Real names. mustTry:true for top 3.
+- tips: 6–9 practical tips specific to ${form.city}. Real local knowledge.
+- budgetBreakdown: realistic estimate for ${form.travelers} traveler(s), ${totalDays} days, budget "${form.budget}". Use the country's currency.
+- All must be REAL and specific to ${form.city}, ${form.country}.`;
 }
 
 // ── Legacy single-call (kept, not used in main flow) ─────────
