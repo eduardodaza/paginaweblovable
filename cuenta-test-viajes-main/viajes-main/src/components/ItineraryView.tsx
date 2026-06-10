@@ -131,11 +131,15 @@ const GLOBAL_CSS = `
   .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; gap: 0; margin-bottom: 16px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); transition: all 0.2s; }
-  .iv-day-item:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.14); }
-  .iv-day-photo { width: 140px; min-height: 120px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
-  .iv-day-body { flex: 1; padding: 14px 16px; min-width: 0; }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 90px; } }
+  .iv-day-item { display: flex; gap: 0; margin-bottom: 14px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; }
+  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
+  .iv-day-photo { width: 240px; min-height: 160px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
+  .iv-day-body { flex: 1; padding: 18px 22px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .iv-day-item-top { flex: 1; }
+  .iv-day-item-bottom { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .iv-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  @media (max-width: 900px) { .iv-day-photo { width: 160px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 110px; min-height: 120px; } .iv-events-grid { grid-template-columns: 1fr; } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
@@ -593,7 +597,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
 
       {/* Items del día */}
       {open && (
-        <div style={{ padding: "0 20px 12px" }}>
+        <div style={{ padding: "12px 20px 16px" }}>
           {day.items.map(item => {
             const edit = edits[item.id] ?? {};
             const rep = edit.replacement;
@@ -620,12 +624,12 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               <div key={item.id} className="iv-day-item">
                 {/* Foto grande izquierda */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={140} height={120} radius={0}
+                  <WikiPhoto query={name} width={240} height={160} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
                   {/* Overlay hora */}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "4px 8px", background: "linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 100%)" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.time}</span>
-                    {displayItem.duration && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.6)", marginLeft: 6 }}>· {displayItem.duration}</span>}
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 800, color: "#fff" }}>{item.time}</span>
+                    {displayItem.duration && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginLeft: 6 }}>· {displayItem.duration}</span>}
                   </div>
                 </div>
 
@@ -633,17 +637,17 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                 <div className="iv-day-body">
                   {/* Badge + precio */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 10, background: bd.bg, color: bd.color, fontWeight: 600, letterSpacing: "0.05em", border: `1px solid ${bd.color}33` }}>
-                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "3px 11px", borderRadius: 20, background: bd.bg, color: bd.color, fontWeight: 700, letterSpacing: "0.06em", border: `1px solid ${bd.color}44` }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
                       {displayItem.type}
                     </span>
                     {displayItem.price && (
-                      <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
                     )}
                   </div>
 
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.58)", lineHeight: 1.65, marginBottom: 6 }}>{displayItem.description}</div>
+                  <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.35 }}>{name}</div>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.62)", lineHeight: 1.7, marginBottom: 8 }}>{displayItem.description}</div>
 
                   {displayItem.wikidataDescription && (
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
@@ -792,15 +796,15 @@ function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["e
   };
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 16 }}>
+    <div className="iv-events-grid">
       {events.map((ev, i) => {
         const tc = typeColor[ev.type] ?? "hsl(280 70% 65%)";
         return (
           <div key={i} className="iv-card iv-animate" style={{ padding: 0, overflow: "hidden", cursor: ev.ticketUrl ? "pointer" : "default" }}
             onClick={() => ev.ticketUrl && window.open(ev.ticketUrl, "_blank")}>
             {/* Foto grande */}
-            <div style={{ height: 180, overflow: "hidden", position: "relative" }}>
-              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={400} height={180} radius={0} emoji="🎭" />
+            <div style={{ height: 200, overflow: "hidden", position: "relative" }}>
+              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={400} height={200} radius={0} emoji="🎭" />
               {/* Badge tipo encima */}
               <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
                 <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 20, background: tc, color: "#fff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", boxShadow: `0 2px 8px ${tc}88` }}>
@@ -819,9 +823,9 @@ function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["e
 
             {/* Contenido */}
             <div style={{ padding: "14px 16px 16px" }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{ev.name}</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: "#fff", marginBottom: 5, lineHeight: 1.3 }}>{ev.name}</div>
               <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 6 }}>📅 {ev.when}{ev.venue ? ` · ${ev.venue}` : ""}</div>
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 10 }}>{ev.description}</div>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.62)", lineHeight: 1.65, marginBottom: 12 }}>{ev.description}</div>
               {ev.ticketUrl && (
                 <a href={ev.ticketUrl} target="_blank" rel="noopener noreferrer"
                   onClick={e => e.stopPropagation()}
