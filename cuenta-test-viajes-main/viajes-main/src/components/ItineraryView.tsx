@@ -78,7 +78,7 @@ function WikiPhoto({ query, width, height, radius, emoji }: {
   const style: React.CSSProperties = {
     width: "100%", height: "100%", minHeight: height, borderRadius: radius, overflow: "hidden",
     background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center",
-    justifyContent: "center", fontSize: Math.round(height * 0.35), flexShrink: 0,
+    justifyContent: "center", fontSize: Math.round(height * 0.35),
   };
 
   if (failed || (!src && query === "")) {
@@ -131,15 +131,16 @@ const GLOBAL_CSS = `
   .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; gap: 0; margin-bottom: 12px; border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; min-height: 130px; }
-  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); }
-  .iv-day-photo { width: 200px; min-width: 200px; max-width: 200px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
-  .iv-day-photo > * { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
-  .iv-day-body { flex: 1; padding: 14px 18px; min-width: 0; }
+  .iv-day-item { display: flex; gap: 0; margin-bottom: 12px; border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; }
+  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
+  .iv-day-photo { flex: 0 0 30%; position: relative; overflow: hidden; background: rgba(255,255,255,0.05); aspect-ratio: 4/3; }
+  .iv-day-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+  .iv-day-photo > div { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+  .iv-day-body { flex: 1; padding: 16px 20px; min-width: 0; }
   .iv-events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   @media (max-width: 1200px) { .iv-events-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 900px) { .iv-day-photo { width: 160px; min-width: 160px; max-width: 160px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 120px; min-width: 120px; max-width: 120px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) { .iv-day-photo { flex: 0 0 35%; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { flex: 0 0 40%; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
