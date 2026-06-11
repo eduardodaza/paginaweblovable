@@ -76,9 +76,9 @@ function WikiPhoto({ query, width, height, radius, emoji }: {
   }, [query, width, height]);
 
   const style: React.CSSProperties = {
-    width: "100%", height: "100%", minHeight: height, borderRadius: radius, overflow: "hidden", flexShrink: 0,
+    width: "100%", height: "100%", minHeight: height, borderRadius: radius, overflow: "hidden",
     background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center",
-    justifyContent: "center", fontSize: Math.round(height * 0.35),
+    justifyContent: "center", fontSize: Math.round(height * 0.35), flexShrink: 0,
   };
 
   if (failed || (!src && query === "")) {
@@ -92,8 +92,8 @@ function WikiPhoto({ query, width, height, radius, emoji }: {
     );
   }
   return (
-    <div style={{ ...style, width: "100%", height: "100%" }}>
-      <img src={src} alt={query} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }}
+    <div style={style}>
+      <img src={src} alt={query} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.88 }}
         onError={() => setFailed(true)} />
     </div>
   );
@@ -131,17 +131,15 @@ const GLOBAL_CSS = `
   .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; gap: 0; margin-bottom: 16px; border-radius: 18px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; min-height: 180px; }
-  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
-  .iv-day-photo { width: 38%; min-width: 220px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
-  .iv-day-photo img, .iv-day-photo > div { width: 100% !important; height: 100% !important; min-height: 180px; object-fit: cover; }
-  .iv-day-body { flex: 1; padding: 20px 26px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
-  .iv-day-item-top { flex: 1; }
-  .iv-day-item-bottom { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .iv-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
-  @media (max-width: 1100px) { .iv-day-photo { width: 32%; min-width: 180px; } }
-  @media (max-width: 900px) { .iv-day-photo { width: 28%; min-width: 150px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 38%; min-width: 110px; } .iv-events-grid { grid-template-columns: 1fr; } }
+  .iv-day-item { display: flex; gap: 0; margin-bottom: 12px; border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; min-height: 130px; }
+  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); }
+  .iv-day-photo { width: 200px; min-width: 200px; max-width: 200px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
+  .iv-day-photo > * { position: absolute; inset: 0; width: 100% !important; height: 100% !important; object-fit: cover; }
+  .iv-day-body { flex: 1; padding: 14px 18px; min-width: 0; }
+  .iv-events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  @media (max-width: 1200px) { .iv-events-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 900px) { .iv-day-photo { width: 160px; min-width: 160px; max-width: 160px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 120px; min-width: 120px; max-width: 120px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
@@ -626,12 +624,12 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               <div key={item.id} className="iv-day-item">
                 {/* Foto grande izquierda */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={420} height={200} radius={0}
+                  <WikiPhoto query={name} width={200} height={130} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
                   {/* Overlay hora */}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 14, fontWeight: 800, color: "#fff" }}>{item.time}</span>
-                    {displayItem.duration && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginLeft: 6 }}>· {displayItem.duration}</span>}
+                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 8px", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
+                    <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.time}</span>
+                    {displayItem.duration && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginLeft: 5 }}>· {displayItem.duration}</span>}
                   </div>
                 </div>
 
@@ -639,17 +637,17 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                 <div className="iv-day-body">
                   {/* Badge + precio */}
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 11, padding: "3px 11px", borderRadius: 20, background: bd.bg, color: bd.color, fontWeight: 700, letterSpacing: "0.06em", border: `1px solid ${bd.color}44` }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 20, background: bd.bg, color: bd.color, fontWeight: 700, letterSpacing: "0.05em", border: `1px solid ${bd.color}33` }}>
+                      <span style={{ width: 5, height: 5, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
                       {displayItem.type}
                     </span>
                     {displayItem.price && (
-                      <span style={{ fontSize: 15, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
                     )}
                   </div>
 
-                  <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>{name}</div>
-                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", lineHeight: 1.72, marginBottom: 10 }}>{displayItem.description}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 6 }}>{displayItem.description}</div>
 
                   {displayItem.wikidataDescription && (
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
@@ -658,13 +656,13 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                     <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", marginBottom: 5, padding: "4px 9px", background: "hsl(160 60% 20%/0.25)", borderRadius: 8, border: "1px solid hsl(160 70%50%/0.2)" }}>📝 {edit.note}</div>
                   )}
                   {displayItem.tip && (
-                    <div style={{ fontSize: 13, color: "hsl(280 70% 72%)", marginBottom: 8, padding: "7px 12px", background: "hsl(280 70%50%/0.15)", borderRadius: 10, border: "1px solid hsl(280 70%50%/0.2)", lineHeight: 1.55 }}>💡 {displayItem.tip}</div>
+                    <div style={{ fontSize: 11, color: "hsl(280 70% 72%)", marginBottom: 5, padding: "4px 9px", background: "hsl(280 70%50%/0.15)", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.2)" }}>💡 {displayItem.tip}</div>
                   )}
 
                   {/* Meta pills */}
-                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                    {displayItem.transport && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
-                    {displayItem.rating && <span style={{ fontSize: 13, color: "hsl(38 95% 65%)", fontWeight: 700 }}>★ {displayItem.rating}</span>}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                    {displayItem.transport && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
+                    {displayItem.rating && <span style={{ fontSize: 11, color: "hsl(38 95% 65%)", fontWeight: 600 }}>★ {displayItem.rating}</span>}
                     {isSight && displayItem.links?.googleMaps && (
                       <a href={displayItem.links.googleMaps} target="_blank" rel="noopener noreferrer"
                         className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>🗺 Maps</a>
@@ -805,8 +803,8 @@ function EventsPanel({ events, locale, city: _city }: { events: ItineraryData["e
           <div key={i} className="iv-card iv-animate" style={{ padding: 0, overflow: "hidden", cursor: ev.ticketUrl ? "pointer" : "default" }}
             onClick={() => ev.ticketUrl && window.open(ev.ticketUrl, "_blank")}>
             {/* Foto grande */}
-            <div style={{ height: 200, overflow: "hidden", position: "relative" }}>
-              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={400} height={200} radius={0} emoji="🎭" />
+            <div style={{ height: 160, overflow: "hidden", position: "relative" }}>
+              <WikiPhoto query={ev.venue ? ev.name + " " + ev.venue : ev.name} width={300} height={160} radius={0} emoji="🎭" />
               {/* Badge tipo encima */}
               <div style={{ position: "absolute", top: 10, left: 10, zIndex: 2 }}>
                 <span style={{ fontSize: 10, padding: "3px 10px", borderRadius: 20, background: tc, color: "#fff", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", boxShadow: `0 2px 8px ${tc}88` }}>
