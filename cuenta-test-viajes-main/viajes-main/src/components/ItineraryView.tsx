@@ -76,9 +76,9 @@ function WikiPhoto({ query, width, height, radius, emoji }: {
   }, [query, width, height]);
 
   const style: React.CSSProperties = {
-    width, height, borderRadius: radius, overflow: "hidden", flexShrink: 0,
+    width: "100%", height: "100%", minHeight: height, borderRadius: radius, overflow: "hidden", flexShrink: 0,
     background: "rgba(255,255,255,0.05)", display: "flex", alignItems: "center",
-    justifyContent: "center", fontSize: Math.round(height * 0.4),
+    justifyContent: "center", fontSize: Math.round(height * 0.35),
   };
 
   if (failed || (!src && query === "")) {
@@ -92,8 +92,8 @@ function WikiPhoto({ query, width, height, radius, emoji }: {
     );
   }
   return (
-    <div style={style}>
-      <img src={src} alt={query} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.88 }}
+    <div style={{ ...style, width: "100%", height: "100%" }}>
+      <img src={src} alt={query} style={{ width: "100%", height: "100%", objectFit: "cover", opacity: 0.9 }}
         onError={() => setFailed(true)} />
     </div>
   );
@@ -131,15 +131,17 @@ const GLOBAL_CSS = `
   .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; gap: 0; margin-bottom: 14px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; }
-  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.16); transform: translateY(-1px); box-shadow: 0 6px 24px rgba(0,0,0,0.3); }
-  .iv-day-photo { width: 240px; min-height: 160px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
-  .iv-day-body { flex: 1; padding: 18px 22px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
+  .iv-day-item { display: flex; gap: 0; margin-bottom: 16px; border-radius: 18px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; min-height: 180px; }
+  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,0,0,0.4); }
+  .iv-day-photo { width: 38%; min-width: 220px; flex-shrink: 0; overflow: hidden; background: rgba(255,255,255,0.05); position: relative; }
+  .iv-day-photo img, .iv-day-photo > div { width: 100% !important; height: 100% !important; min-height: 180px; object-fit: cover; }
+  .iv-day-body { flex: 1; padding: 20px 26px; min-width: 0; display: flex; flex-direction: column; justify-content: space-between; }
   .iv-day-item-top { flex: 1; }
-  .iv-day-item-bottom { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .iv-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
-  @media (max-width: 900px) { .iv-day-photo { width: 160px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 110px; min-height: 120px; } .iv-events-grid { grid-template-columns: 1fr; } }
+  .iv-day-item-bottom { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .iv-events-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+  @media (max-width: 1100px) { .iv-day-photo { width: 32%; min-width: 180px; } }
+  @media (max-width: 900px) { .iv-day-photo { width: 28%; min-width: 150px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 38%; min-width: 110px; } .iv-events-grid { grid-template-columns: 1fr; } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
@@ -624,7 +626,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               <div key={item.id} className="iv-day-item">
                 {/* Foto grande izquierda */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={240} height={160} radius={0}
+                  <WikiPhoto query={name} width={420} height={200} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
                   {/* Overlay hora */}
                   <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "8px 12px", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
@@ -646,8 +648,8 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                     )}
                   </div>
 
-                  <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.35 }}>{name}</div>
-                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.62)", lineHeight: 1.7, marginBottom: 8 }}>{displayItem.description}</div>
+                  <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>{name}</div>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.65)", lineHeight: 1.72, marginBottom: 10 }}>{displayItem.description}</div>
 
                   {displayItem.wikidataDescription && (
                     <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
@@ -656,13 +658,13 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                     <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", marginBottom: 5, padding: "4px 9px", background: "hsl(160 60% 20%/0.25)", borderRadius: 8, border: "1px solid hsl(160 70%50%/0.2)" }}>📝 {edit.note}</div>
                   )}
                   {displayItem.tip && (
-                    <div style={{ fontSize: 11, color: "hsl(280 70% 72%)", marginBottom: 6, padding: "4px 9px", background: "hsl(280 70%50%/0.15)", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.2)" }}>💡 {displayItem.tip}</div>
+                    <div style={{ fontSize: 13, color: "hsl(280 70% 72%)", marginBottom: 8, padding: "7px 12px", background: "hsl(280 70%50%/0.15)", borderRadius: 10, border: "1px solid hsl(280 70%50%/0.2)", lineHeight: 1.55 }}>💡 {displayItem.tip}</div>
                   )}
 
                   {/* Meta pills */}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    {displayItem.transport && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
-                    {displayItem.rating && <span style={{ fontSize: 11, color: "hsl(38 95% 65%)", fontWeight: 600 }}>★ {displayItem.rating}</span>}
+                  <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                    {displayItem.transport && <span style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
+                    {displayItem.rating && <span style={{ fontSize: 13, color: "hsl(38 95% 65%)", fontWeight: 700 }}>★ {displayItem.rating}</span>}
                     {isSight && displayItem.links?.googleMaps && (
                       <a href={displayItem.links.googleMaps} target="_blank" rel="noopener noreferrer"
                         className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>🗺 Maps</a>
@@ -672,7 +674,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
                         className="iv-link" style={{ border: "1px solid hsl(12 85% 55%/0.4)", color: "hsl(12 85% 65%)", background: "hsl(12 85% 55%/0.1)" }}>🎫 Reservar</a>
                     )}
                     <button onClick={() => onEdit(item)}
-                      style={{ fontSize: 11, padding: "3px 9px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.4)", cursor: "pointer", marginLeft: "auto" }}>
+                      style={{ fontSize: 12, padding: "5px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", cursor: "pointer", marginLeft: "auto", transition: "all 0.15s" }}>
                       ✏️ Editar
                     </button>
                   </div>
