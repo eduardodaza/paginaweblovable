@@ -131,12 +131,12 @@ const GLOBAL_CSS = `
   .iv-nav-btn.active { background: rgba(255,120,30,0.12); color: #fff; font-weight: 600; border-left: 3px solid hsl(22 95% 55%); padding-left: 17px; }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; align-items: stretch; margin-bottom: 16px; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: box-shadow 0.2s; }
-  .iv-day-item:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.16); }
-  .iv-day-photo { width: 180px; min-width: 180px; flex-shrink: 0; position: relative; overflow: hidden; background: rgba(255,255,255,0.06); min-height: 140px; }
+  .iv-day-item { display: flex; flex-direction: column; margin-bottom: 20px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: box-shadow 0.2s; }
+  .iv-day-item:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.18); }
+  .iv-day-photo { width: 100%; height: 220px; position: relative; overflow: hidden; background: rgba(255,255,255,0.06); flex-shrink: 0; }
   .iv-day-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .iv-day-photo > div { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-  .iv-day-body { flex: 1; padding: 16px 20px; min-width: 0; }
+  .iv-day-body { padding: 18px 22px 20px; }
   .iv-events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   @media (max-width: 1200px) { .iv-events-grid { grid-template-columns: repeat(3, 1fr); } }
   @media (max-width: 900px) { .iv-day-photo { width: 150px; min-width: 150px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
@@ -630,27 +630,27 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               <div key={item.id} className="iv-day-item">
                 {/* FOTO IZQUIERDA — sin overlay, limpia como QEEQ */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={180} height={140} radius={0}
+                  <WikiPhoto query={name} width={600} height={220} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
                 </div>
 
-                {/* CONTENIDO DERECHA */}
+                {/* CONTENIDO DEBAJO — layout QEEQ */}
                 <div className="iv-day-body">
-                  {/* Línea hora — ENCIMA del título, como QEEQ */}
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 6, fontWeight: 500 }}>
+                  {/* Hora · duración — igual que QEEQ */}
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 8, fontWeight: 500, letterSpacing: "0.01em" }}>
                     {item.time}{displayItem.duration ? ` · ${displayItem.duration}` : ""}
                   </div>
 
-                  {/* Título grande */}
-                  <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{name}</div>
+                  {/* Título — H3 style igual que QEEQ */}
+                  <div style={{ fontSize: 19, fontWeight: 700, color: "#fff", marginBottom: 8, lineHeight: 1.3 }}>{name}</div>
 
                   {/* Descripción */}
-                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.58)", lineHeight: 1.65, marginBottom: 8 }}>{displayItem.description}</div>
+                  <div style={{ fontSize: 15, color: "rgba(255,255,255,0.6)", lineHeight: 1.7, marginBottom: 10 }}>{displayItem.description}</div>
 
                   {/* Tip */}
                   {displayItem.tip && (
-                    <div style={{ fontSize: 12, color: "hsl(38 95% 65%)", marginBottom: 8, padding: "5px 10px", background: "rgba(255,180,0,0.08)", borderRadius: 8, borderLeft: "3px solid hsl(38 95% 60%)", lineHeight: 1.5 }}>
-                      💡 {displayItem.tip}
+                    <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 10, padding: "10px 14px", background: "rgba(255,255,255,0.04)", borderRadius: 10, borderLeft: "3px solid hsl(38 95% 58%)", lineHeight: 1.6, fontStyle: "italic" }}>
+                      {displayItem.tip}
                     </div>
                   )}
                   {edit.note && (
