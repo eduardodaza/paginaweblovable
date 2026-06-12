@@ -123,24 +123,24 @@ const GLOBAL_CSS = `
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
   @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
   .iv-layout { display: flex; min-height: 100vh; }
-  .iv-sidebar { width: 220px; min-width: 220px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: rgba(10,8,24,0.85); border-right: 1px solid rgba(255,255,255,0.08); backdrop-filter: blur(20px); z-index: 10; padding: 0 0 40px; flex-shrink: 0; }
-  .iv-sidebar::-webkit-scrollbar { width: 4px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-  .iv-main { flex: 1; min-width: 0; padding: 0 28px 80px; }
-  .iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 11px 18px; border: none; background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 13px; font-weight: 400; border-left: 3px solid transparent; transition: all 0.15s; text-align: left; white-space: nowrap; }
-  .iv-nav-btn:hover { background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.85); }
-  .iv-nav-btn.active { background: rgba(255,255,255,0.07); color: #fff; font-weight: 600; border-left-color: hsl(12 85% 55%); }
+  .iv-sidebar { width: 240px; min-width: 240px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(230 30% 10%); border-right: 1px solid rgba(255,255,255,0.07); z-index: 10; padding: 0 0 40px; flex-shrink: 0; }
+  .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
+  .iv-main { flex: 1; min-width: 0; padding: 0 32px 80px; max-width: 1100px; }
+  .iv-nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 20px; border: none; background: transparent; color: rgba(255,255,255,0.55); cursor: pointer; font-size: 14px; font-weight: 400; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; }
+  .iv-nav-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
+  .iv-nav-btn.active { background: rgba(255,120,30,0.12); color: #fff; font-weight: 600; border-left: 3px solid hsl(22 95% 55%); padding-left: 17px; }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; gap: 0; margin-bottom: 12px; border-radius: 14px; overflow: hidden; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.09); transition: all 0.2s; }
-  .iv-day-item:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.18); }
-  .iv-day-photo { flex: 0 0 30%; position: relative; overflow: hidden; background: rgba(255,255,255,0.05); aspect-ratio: 4/3; }
+  .iv-day-item { display: flex; align-items: stretch; margin-bottom: 16px; border-radius: 12px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: box-shadow 0.2s; }
+  .iv-day-item:hover { box-shadow: 0 4px 20px rgba(0,0,0,0.35); border-color: rgba(255,255,255,0.16); }
+  .iv-day-photo { width: 180px; min-width: 180px; flex-shrink: 0; position: relative; overflow: hidden; background: rgba(255,255,255,0.06); min-height: 140px; }
   .iv-day-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
-  .iv-day-photo > div { position: absolute; inset: 0; width: 100% !important; height: 100% !important; }
+  .iv-day-photo > div { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
   .iv-day-body { flex: 1; padding: 16px 20px; min-width: 0; }
   .iv-events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   @media (max-width: 1200px) { .iv-events-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 900px) { .iv-day-photo { flex: 0 0 35%; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { flex: 0 0 40%; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) { .iv-day-photo { width: 150px; min-width: 150px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 110px; min-width: 110px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
@@ -217,11 +217,16 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
 
         {/* ── SIDEBAR FIJO IZQUIERDO ── */}
         <nav className="iv-sidebar">
-          {/* Logo / título */}
-          <div style={{ padding: "20px 18px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 6 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: "hsl(38 95% 65%)", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: 4 }}>✦ TripCraft AI</div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#fff", lineHeight: 1.3 }}>{data.city}</div>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 2 }}>{data.country}</div>
+          {/* Logo / título — estilo QEEQ */}
+          <div style={{ padding: "22px 20px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 4 }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: "hsl(22 95% 58%)", textTransform: "uppercase", letterSpacing: "0.18em", marginBottom: 8 }}>✦ TripCraft AI</div>
+            <div style={{ fontSize: 16, fontWeight: 800, color: "#fff", lineHeight: 1.2 }}>{data.city}</div>
+            {data.days?.length > 1 && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", marginTop: 3 }}>{data.country}</div>
+            )}
+            {!data.days?.length || data.days.length <= 1 && (
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.38)", marginTop: 3 }}>{data.country}</div>
+            )}
           </div>
           {tabs.map(tb => (
             <button key={tb.key}
@@ -232,10 +237,10 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             </button>
           ))}
           {/* Botón volver */}
-          <div style={{ padding: "14px 18px 0", marginTop: 8, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ padding: "16px 20px 0", marginTop: 10, borderTop: "1px solid rgba(255,255,255,0.07)" }}>
             <button onClick={onReset}
-              style={{ width: "100%", padding: "8px 0", fontSize: 12, borderRadius: 10, cursor: "pointer", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.55)", transition: "all 0.2s" }}>
-              ← {t("newSearch", locale)}
+              style={{ width: "100%", padding: "10px 0", fontSize: 13, borderRadius: 10, cursor: "pointer", border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.5)", transition: "all 0.2s", fontWeight: 500 }}>
+              ← {locale === "es" ? "Nueva búsqueda" : "New search"}
             </button>
           </div>
         </nav>
@@ -623,57 +628,60 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
 
             return (
               <div key={item.id} className="iv-day-item">
-                {/* Foto grande izquierda */}
+                {/* FOTO IZQUIERDA — sin overlay, limpia como QEEQ */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={200} height={130} radius={0}
+                  <WikiPhoto query={name} width={180} height={140} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
-                  {/* Overlay hora */}
-                  <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "6px 8px", background: "linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%)" }}>
-                    <span style={{ fontFamily: "monospace", fontSize: 12, fontWeight: 700, color: "#fff" }}>{item.time}</span>
-                    {displayItem.duration && <span style={{ fontSize: 10, color: "rgba(255,255,255,0.65)", marginLeft: 5 }}>· {displayItem.duration}</span>}
-                  </div>
                 </div>
 
-                {/* Contenido derecha */}
+                {/* CONTENIDO DERECHA */}
                 <div className="iv-day-body">
-                  {/* Badge + precio */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 4 }}>
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 20, background: bd.bg, color: bd.color, fontWeight: 700, letterSpacing: "0.05em", border: `1px solid ${bd.color}33` }}>
+                  {/* Línea hora — ENCIMA del título, como QEEQ */}
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 6, fontWeight: 500 }}>
+                    {item.time}{displayItem.duration ? ` · ${displayItem.duration}` : ""}
+                  </div>
+
+                  {/* Título grande */}
+                  <div style={{ fontSize: 17, fontWeight: 700, color: "#fff", marginBottom: 6, lineHeight: 1.3 }}>{name}</div>
+
+                  {/* Descripción */}
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.58)", lineHeight: 1.65, marginBottom: 8 }}>{displayItem.description}</div>
+
+                  {/* Tip */}
+                  {displayItem.tip && (
+                    <div style={{ fontSize: 12, color: "hsl(38 95% 65%)", marginBottom: 8, padding: "5px 10px", background: "rgba(255,180,0,0.08)", borderRadius: 8, borderLeft: "3px solid hsl(38 95% 60%)", lineHeight: 1.5 }}>
+                      💡 {displayItem.tip}
+                    </div>
+                  )}
+                  {edit.note && (
+                    <div style={{ fontSize: 12, color: "hsl(160 70% 55%)", marginBottom: 8, padding: "5px 10px", background: "hsl(160 60% 20%/0.2)", borderRadius: 8, borderLeft: "3px solid hsl(160 70% 50%)" }}>📝 {edit.note}</div>
+                  )}
+
+                  {/* Fila inferior: badge · transporte · rating · precio · links · editar */}
+                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginTop: "auto" }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 10, padding: "2px 9px", borderRadius: 20, background: bd.bg, color: bd.color, fontWeight: 700, border: `1px solid ${bd.color}33` }}>
                       <span style={{ width: 5, height: 5, borderRadius: "50%", background: bd.dot, display: "inline-block" }} />
                       {displayItem.type}
                     </span>
-                    {displayItem.price && (
-                      <span style={{ fontSize: 13, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
+                    {displayItem.transport && (
+                      <span style={{ fontSize: 11, color: "rgba(255,255,255,0.38)" }}>🚶 {displayItem.transport}{displayItem.transportTime ? ` ${displayItem.transportTime}` : ""}</span>
                     )}
-                  </div>
-
-                  <div style={{ fontSize: 15, fontWeight: 700, color: "#fff", marginBottom: 4, lineHeight: 1.3 }}>{name}</div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", lineHeight: 1.6, marginBottom: 6 }}>{displayItem.description}</div>
-
-                  {displayItem.wikidataDescription && (
-                    <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginBottom: 5, fontStyle: "italic", lineHeight: 1.5 }}>📖 {displayItem.wikidataDescription}</div>
-                  )}
-                  {edit.note && (
-                    <div style={{ fontSize: 11, color: "hsl(160 70% 55%)", marginBottom: 5, padding: "4px 9px", background: "hsl(160 60% 20%/0.25)", borderRadius: 8, border: "1px solid hsl(160 70%50%/0.2)" }}>📝 {edit.note}</div>
-                  )}
-                  {displayItem.tip && (
-                    <div style={{ fontSize: 11, color: "hsl(280 70% 72%)", marginBottom: 5, padding: "4px 9px", background: "hsl(280 70%50%/0.15)", borderRadius: 8, border: "1px solid hsl(280 70%50%/0.2)" }}>💡 {displayItem.tip}</div>
-                  )}
-
-                  {/* Meta pills */}
-                  <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
-                    {displayItem.transport && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>🚶 {displayItem.transport} {displayItem.transportTime ?? ""}</span>}
-                    {displayItem.rating && <span style={{ fontSize: 11, color: "hsl(38 95% 65%)", fontWeight: 600 }}>★ {displayItem.rating}</span>}
+                    {displayItem.rating && (
+                      <span style={{ fontSize: 11, color: "hsl(38 95% 65%)", fontWeight: 600 }}>★ {displayItem.rating}</span>
+                    )}
+                    {displayItem.price && (
+                      <span style={{ fontSize: 12, fontWeight: 800, color: "hsl(38 95% 65%)" }}>{displayItem.price}</span>
+                    )}
                     {isSight && displayItem.links?.googleMaps && (
                       <a href={displayItem.links.googleMaps} target="_blank" rel="noopener noreferrer"
-                        className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.65)", background: "rgba(255,255,255,0.07)" }}>🗺 Maps</a>
+                        className="iv-link" style={{ border: "1px solid rgba(255,255,255,0.15)", color: "rgba(255,255,255,0.6)", background: "rgba(255,255,255,0.06)" }}>🗺 Maps</a>
                     )}
                     {displayItem.viatorUrl && (
                       <a href={displayItem.viatorUrl} target="_blank" rel="noopener noreferrer"
                         className="iv-link" style={{ border: "1px solid hsl(12 85% 55%/0.4)", color: "hsl(12 85% 65%)", background: "hsl(12 85% 55%/0.1)" }}>🎫 Reservar</a>
                     )}
                     <button onClick={() => onEdit(item)}
-                      style={{ fontSize: 12, padding: "5px 14px", border: "1px solid rgba(255,255,255,0.15)", borderRadius: 10, background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.55)", cursor: "pointer", marginLeft: "auto", transition: "all 0.15s" }}>
+                      style={{ fontSize: 11, padding: "4px 12px", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.45)", cursor: "pointer", marginLeft: "auto" }}>
                       ✏️ Editar
                     </button>
                   </div>
