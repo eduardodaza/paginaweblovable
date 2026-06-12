@@ -123,24 +123,25 @@ const GLOBAL_CSS = `
   .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
   @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
   .iv-layout { display: flex; min-height: 100vh; }
-  .iv-sidebar { width: 240px; min-width: 240px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(230 30% 10%); border-right: 1px solid rgba(255,255,255,0.07); z-index: 10; padding: 0 0 40px; flex-shrink: 0; }
+  .iv-sidebar { width: 220px; min-width: 220px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(230 30% 10%); border-right: 1px solid rgba(255,255,255,0.07); z-index: 10; padding: 0 0 40px; flex-shrink: 0; }
   .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 4px; }
-  .iv-main { flex: 1; min-width: 0; padding: 0 32px 80px; max-width: 1100px; }
+  .iv-main { flex: 1; min-width: 0; padding: 0 24px 80px; }
   .iv-nav-btn { display: flex; align-items: center; gap: 12px; width: 100%; padding: 13px 20px; border: none; background: transparent; color: rgba(255,255,255,0.55); cursor: pointer; font-size: 14px; font-weight: 400; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; }
   .iv-nav-btn:hover { background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.9); }
   .iv-nav-btn.active { background: rgba(255,120,30,0.12); color: #fff; font-weight: 600; border-left: 3px solid hsl(22 95% 55%); padding-left: 17px; }
   .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent; }
   .iv-tabs-scroll::-webkit-scrollbar { height: 4px; } .iv-tabs-scroll::-webkit-scrollbar-track { background: transparent; } .iv-tabs-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-  .iv-day-item { display: flex; flex-direction: column; margin-bottom: 20px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: box-shadow 0.2s; }
+  .iv-day-item { display: flex; flex-direction: column; margin-bottom: 20px; border-radius: 16px; overflow: hidden; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); transition: box-shadow 0.2s; width: 100%; }
   .iv-day-item:hover { box-shadow: 0 4px 24px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.18); }
-  .iv-day-photo { width: 100%; height: 220px; position: relative; overflow: hidden; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+  .iv-day-photo { width: 100%; height: 300px; position: relative; overflow: hidden; background: rgba(255,255,255,0.06); flex-shrink: 0; }
   .iv-day-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
   .iv-day-photo > div { position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; }
-  .iv-day-body { padding: 18px 22px 20px; }
+  .iv-day-body { padding: 20px 24px 22px; }
+  .iv-items-wrap { padding: 12px 0 16px; }
   .iv-events-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
   @media (max-width: 1200px) { .iv-events-grid { grid-template-columns: repeat(3, 1fr); } }
-  @media (max-width: 900px) { .iv-day-photo { width: 150px; min-width: 150px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 14px 60px; } .iv-day-photo { width: 110px; min-width: 110px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 900px) { .iv-day-photo { height: 220px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 12px 60px; } .iv-day-photo { height: 180px; } .iv-events-grid { grid-template-columns: repeat(2, 1fr); } }
 `;
 
 export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
@@ -603,7 +604,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
 
       {/* Items del día */}
       {open && (
-        <div style={{ padding: "12px 20px 16px" }}>
+        <div className="iv-items-wrap" style={{ padding: "12px 0 16px" }}>
           {day.items.map(item => {
             const edit = edits[item.id] ?? {};
             const rep = edit.replacement;
@@ -630,7 +631,7 @@ function DayCard({ day, index, open, onToggle, edits, onEdit, locale }: {
               <div key={item.id} className="iv-day-item">
                 {/* FOTO IZQUIERDA — sin overlay, limpia como QEEQ */}
                 <div className="iv-day-photo">
-                  <WikiPhoto query={name} width={600} height={220} radius={0}
+                  <WikiPhoto query={name} width={900} height={300} radius={0}
                     emoji={displayItem.type === "food" ? "🍽️" : displayItem.type === "beach" ? "🏖️" : displayItem.type === "night" ? "🌙" : "🏛️"} />
                 </div>
 
