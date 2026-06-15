@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import type { ItineraryData, ItineraryDay, ItineraryItem, UserEdits, Locale, TripFormData } from "@/lib/types";
 import { t } from "@/lib/i18n";
 import TravelExtrasTabs from "@/components/TravelExtrasTabs";
-import "@/styles/itinerary-light.css";
+
 
 // ── Badges de tipo — colores actualizados al nuevo sistema visual ──
 const BADGE: Record<string, { label: string; bg: string; color: string; dot: string }> = {
