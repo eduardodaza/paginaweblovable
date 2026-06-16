@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import type { ItineraryData, ItineraryDay, ItineraryItem, UserEdits, Locale, TripFormData } from "@/lib/types";
 import { t } from "@/lib/i18n";
 import TravelExtrasTabs from "@/components/TravelExtrasTabs";
-import "@/styles/itinerary-light.css";
 
 const BADGE: Record<string, { label: string; bg: string; color: string }> = {
   sight:     { label: "sight",  bg: "#e8f5ef", color: "#0f6e56" },
