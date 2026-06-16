@@ -20,9 +20,11 @@ interface Props {
   locale: Locale;
   onReset: () => void;
   form?: TripFormData | null;
+  cityResults?: ItineraryData[];
+  onRetryCity?: (cityIndex: number) => Promise<void>;
 }
 
-export default function ItineraryView({ data, locale, onReset, form }: Props) {
+export default function ItineraryView({ data, locale, onReset, form, cityResults, onRetryCity }: Props) {
   const [tab, setTab] = useState<"days" | "restaurants" | "events" | "hotels" | "extras" | "security">("days");
   const [openDays, setOpenDays] = useState<Set<number>>(new Set([0]));
   const [edits, setEdits] = useState<UserEdits>({});
