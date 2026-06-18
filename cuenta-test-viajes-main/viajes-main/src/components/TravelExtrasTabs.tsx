@@ -1,356 +1,486 @@
-// src/components/TravelExtrasTabs.tsx — Pestañas de extras de viaje
-import React, { useState } from "react";
-import type { ItineraryData, Locale, Restaurant, Event, Hotel, SecurityAlert, PrepItem, GastronomyItem, TipItem, BudgetBreakdown } from "@/lib/types";
+// src/components/TravelExtrasTabs.tsx
+// Drop-in component. Funciona para CUALQUIER ciudad (Madrid, París, Roma, NY, etc.)
+// RESTAURADO: esta pestaña ("Vuelos · Tours" en el sidebar) debe mostrar
+// Vuelos / Autos / Transporte / Tours (no duplicar Restaurantes/Eventos/Hoteles,
+// que ya tienen sus propias pestañas en ItineraryView.tsx).
+//
+// Mantiene el contrato de props nuevo (data, locale, from, to, pax) que ya usa
+// ItineraryView.tsx, así no hace falta tocar ningún otro archivo.
+//
+// Lógica de deep-links / detección de origen / llamada a /api/travel-extras
+// recuperada del componente original que ya funcionaba.
+
+import { useEffect, useMemo, useState } from "react";
+import type { ItineraryData, Locale } from "@/lib/types";
+
+type Tab = "flights" | "cars" | "transport" | "tours";
 
 interface Props {
   data: ItineraryData;
   locale: Locale;
-  from: string;
-  to: string;
+  from: string; // YYYY-MM-DD
+  to: string;   // YYYY-MM-DD
   pax: number;
 }
 
-// ── Badges para tipos ──────────────────────────────────────────────────────────
-const RISK = {
-  alto:  { bar: "#EF4444", badge: { bg: "#FEE2E2", color: "#DC2626" } },
-  medio: { bar: "#F59E0B", badge: { bg: "#FEF3C7", color: "#D97706" } },
-  bajo:  { bar: "#10B981", badge: { bg: "#D1FAE5", color: "#059669" } },
+type ApiResp = {
+  meta: { sources: Record<string, string>; counts: Record<string, number> };
+  flights: any[];
+  cars: any[];
+  transport: any[];
+  tours: any[];
 };
 
-const HOTEL_COLORS: Record<string, { accent: string; label: string }> = {
-  "Booking.com": { accent: "#0071c2", label: "Booking" },
-  "Hotels.com":  { accent: "#d32d20", label: "Hotels.com" },
-  "Expedia":     { accent: "#1a3286", label: "Expedia" },
-  "Airbnb":      { accent: "#ff385c", label: "Airbnb" },
+const TABS: { id: Tab; label: string; icon: string }[] = [
+  { id: "flights",   label: "Vuelos",     icon: "✈️" },
+  { id: "cars",      label: "Autos",      icon: "🚗" },
+  { id: "transport", label: "Transporte", icon: "🚕" },
+  { id: "tours",     label: "Tours",      icon: "🎭" },
+];
+
+/* ------------------------------ helpers ------------------------------ */
+function toYYMMDD(d: string): string {
+  const [y, m, dd] = d.split("-");
+  return `${y.slice(2)}${m}${dd}`;
+}
+function ymdParts(d: string) {
+  const [y, m, dd] = d.split("-");
+  return { y, m, d: String(Number(dd)), mm: String(Number(m)) };
+}
+
+const CITY_IATA: Record<string, string> = {
+  madrid: "MAD", barcelona: "BCN", paris: "PAR", london: "LON", londres: "LON",
+  rome: "ROM", roma: "ROM", milan: "MIL", milano: "MIL", lisbon: "LIS", lisboa: "LIS",
+  amsterdam: "AMS", berlin: "BER", munich: "MUC", münchen: "MUC", vienna: "VIE", viena: "VIE",
+  prague: "PRG", praga: "PRG", dublin: "DUB", zurich: "ZRH", zúrich: "ZRH",
+  miami: "MIA", "new york": "NYC", "nueva york": "NYC", "los angeles": "LAX",
+  chicago: "CHI", "san francisco": "SFO", boston: "BOS", "las vegas": "LAS",
+  bogota: "BOG", "bogotá": "BOG", medellin: "MDE", "medellín": "MDE",
+  cali: "CLO", cartagena: "CTG", panama: "PTY", "panamá": "PTY",
+  cancun: "CUN", "cancún": "CUN", mexico: "MEX", "ciudad de mexico": "MEX", "ciudad de méxico": "MEX",
+  guadalajara: "GDL", monterrey: "MTY",
+  "buenos aires": "BUE", buenosaires: "BUE", lima: "LIM", santiago: "SCL", quito: "UIO",
+  saopaulo: "SAO", "sao paulo": "SAO", "são paulo": "SAO", rio: "RIO", "rio de janeiro": "RIO",
+  tokyo: "TYO", tokio: "TYO", osaka: "OSA", seoul: "SEL", seúl: "SEL",
+  bangkok: "BKK", singapore: "SIN", singapur: "SIN", dubai: "DXB", istanbul: "IST", estambul: "IST",
 };
 
-const PEXELS_FALLBACKS: Record<string, string> = {
-  festival:   "https://images.pexels.com/photos/1105666/pexels-photo-1105666.jpeg?auto=compress&cs=tinysrgb&w=600&h=400",
-  concert:    "https://images.pexels.com/photos/1190297/pexels-photo-1190297.jpeg?auto=compress&cs=tinysrgb&w=600&h=400",
-  permanent:  "https://images.pexels.com/photos/460672/pexels-photo-460672.jpeg?auto=compress&cs=tinysrgb&w=600&h=400",
-  gastronomy: "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg?auto=compress&cs=tinysrgb&w=600&h=400",
-  default:    "https://images.pexels.com/photos/2325446/pexels-photo-2325446.jpeg?auto=compress&cs=tinysrgb&w=600&h=400",
-};
+function normalizeCityKey(value?: string): string {
+  return (value || "").trim().toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ");
+}
+function cleanIata(value?: string, cityFallback?: string): string | undefined {
+  const raw = (value || "").trim().toUpperCase();
+  if (/^[A-Z]{3}$/.test(raw)) return raw;
+  const key = normalizeCityKey(cityFallback || value);
+  return CITY_IATA[key] || CITY_IATA[key.replace(/\s+/g, "")];
+}
+function slug(value: string): string {
+  return normalizeCityKey(value).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+}
+function isValidHttpUrl(u?: string): boolean {
+  if (!u) return false;
+  try {
+    const url = new URL(u);
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch { return false; }
+}
 
-// ── SmartPhoto ────────────────────────────────────────────────────────────────
-function SmartPhoto({ query, fallbackUrl, height }: { query: string; fallbackUrl: string; height: number }) {
-  const [src, setSrc] = React.useState<string | null>(null);
-  const [imgFailed, setImgFailed] = React.useState(false);
+/* ------------------------------ deep-links ------------------------------ */
+function buildSkyscannerUrl(opts: { from: string; to: string; originCity?: string; originIATA?: string; destIATA?: string; destCity: string; pax: number; }): string {
+  const adults = Math.max(1, Number(opts.pax) || 1);
+  const out = toYYMMDD(opts.from);
+  const ret = toYYMMDD(opts.to);
+  const origin = cleanIata(opts.originIATA, opts.originCity);
+  const dest = cleanIata(opts.destIATA, opts.destCity);
+  const common = `adults=${adults}&adultsv2=${adults}&cabinclass=economy&rtn=1&preferdirects=false&ref=home`;
+  if (origin && dest) {
+    return `https://www.skyscanner.net/transport/flights/${origin.toLowerCase()}/${dest.toLowerCase()}/${out}/${ret}/?${common}`;
+  }
+  return `https://www.skyscanner.net/flights/search?adults=${adults}&from=${origin ?? ""}&to=${dest ?? ""}&depart=${opts.from}&return=${opts.to}`;
+}
 
-  React.useEffect(() => {
-    if (!query.trim()) { setSrc(fallbackUrl); return; }
-    let cancelled = false;
-    const encoded = encodeURIComponent(query.trim());
+function buildGoogleFlightsUrl(opts: { from: string; to: string; originCity?: string; originIATA?: string; destCity: string; destIATA?: string; pax: number; }): string {
+  const adults = Math.max(1, Number(opts.pax) || 1);
+  const origin = opts.originIATA || opts.originCity || "";
+  const dest = opts.destIATA || opts.destCity;
+  if (origin && /^[A-Z]{3}$/i.test(origin) && opts.destIATA) {
+    const hash = `#flt=${origin.toUpperCase()}.${opts.destIATA.toUpperCase()}.${opts.from}*${opts.destIATA.toUpperCase()}.${origin.toUpperCase()}.${opts.to};c:USD;e:1;sd:1;t:f;px:${adults}`;
+    return `https://www.google.com/travel/flights${hash}`;
+  }
+  const q = `Flights to ${dest}${origin ? ` from ${origin}` : ""} ${opts.from} ${opts.to} ${adults} adults`;
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}`;
+}
 
-    fetch(`https://en.wikipedia.org/w/api.php?action=query&titles=${encoded}&prop=pageimages&format=json&pithumbsize=800&origin=*`)
-      .then(r => r.json())
-      .then(data => {
-        if (cancelled) return;
-        const pages = data?.query?.pages ?? {};
-        const page = Object.values(pages)[0] as { thumbnail?: { source: string } };
-        if (page?.thumbnail?.source) {
-          setSrc(page.thumbnail.source);
-        } else {
-          setSrc(fallbackUrl);
-        }
-      })
-      .catch(() => { if (!cancelled) setSrc(fallbackUrl); });
-    return () => { cancelled = true; };
-  }, [query, fallbackUrl]);
+function buildBookingCarsUrl(opts: { city: string; country?: string; from: string; to: string }): string {
+  const a = ymdParts(opts.from);
+  const b = ymdParts(opts.to);
+  const locationName = [opts.city, opts.country].filter(Boolean).join(", ");
+  const params = new URLSearchParams({
+    ss: locationName,
+    pickup_date: opts.from,
+    dropoff_date: opts.to,
+    pickup_time: "10:00",
+    dropoff_time: "10:00",
+    driver_age: "30",
+    "puYear": a.y, "puMonth": a.mm, "puDay": a.d, "puHour": "10", "puMinute": "0",
+    "doYear": b.y, "doMonth": b.mm, "doDay": b.d, "doHour": "10", "doMinute": "0",
+  });
+  return `https://www.booking.com/cars/searchresults.html?${params.toString()}`;
+}
 
-  if (!src) {
-    return (
-      <div style={{
-        width: "100%", height, borderRadius: 0,
-        background: "linear-gradient(90deg, #EEEDEA 25%, #E4E3DF 50%, #EEEDEA 75%)",
-        backgroundSize: "200% 100%", animation: "iv-shimmer 1.4s linear infinite",
-      }} />
-    );
+function buildKayakCarsUrl(opts: { city: string; from: string; to: string }): string {
+  return `https://www.kayak.com/cars/${encodeURIComponent(slug(opts.city))}/${opts.from}/${opts.to}`;
+}
+
+function buildViatorSearchUrl(opts: { city: string; from: string; to: string; pax: number; query?: string }): string {
+  const params = new URLSearchParams({
+    text: [opts.query, opts.city].filter(Boolean).join(" "),
+    startDate: opts.from, endDate: opts.to,
+    adult: String(Math.max(1, Number(opts.pax) || 1)),
+    adults: String(Math.max(1, Number(opts.pax) || 1)),
+  });
+  return `https://www.viator.com/searchResults/all?${params.toString()}`;
+}
+function buildGetYourGuideSearchUrl(opts: { city: string; from: string; to: string; pax: number; query?: string }): string {
+  const params = new URLSearchParams({
+    q: [opts.query, opts.city].filter(Boolean).join(" "),
+    date_from: opts.from, date_to: opts.to,
+    participants: String(Math.max(1, Number(opts.pax) || 1)),
+  });
+  return `https://www.getyourguide.com/s/?${params.toString()}`;
+}
+function withTripParams(url: string | undefined, opts: { city: string; from: string; to: string; pax: number; query?: string; provider: "viator" | "gyg" }): string {
+  const fallback = opts.provider === "viator" ? buildViatorSearchUrl(opts) : buildGetYourGuideSearchUrl(opts);
+  if (!url) return fallback;
+  try {
+    const parsed = new URL(url);
+    if (opts.provider === "viator" && parsed.hostname.includes("viator.")) {
+      parsed.searchParams.set("startDate", opts.from);
+      parsed.searchParams.set("endDate", opts.to);
+      parsed.searchParams.set("adult", String(Math.max(1, Number(opts.pax) || 1)));
+      parsed.searchParams.set("adults", String(Math.max(1, Number(opts.pax) || 1)));
+      if (!parsed.searchParams.get("text") && opts.query) parsed.searchParams.set("text", [opts.query, opts.city].join(" "));
+      return parsed.toString();
+    }
+    if (opts.provider === "gyg" && parsed.hostname.includes("getyourguide.")) {
+      parsed.searchParams.set("date_from", opts.from);
+      parsed.searchParams.set("date_to", opts.to);
+      parsed.searchParams.set("participants", String(Math.max(1, Number(opts.pax) || 1)));
+      if (!parsed.searchParams.get("q") && opts.query) parsed.searchParams.set("q", [opts.query, opts.city].join(" "));
+      return parsed.toString();
+    }
+    return fallback;
+  } catch { return fallback; }
+}
+
+/* ------------------- transporte: URLs canónicas por app ------------------- */
+const APP_URLS: Array<{ match: RegExp; url: string }> = [
+  { match: /\buber\b/i,         url: "https://m.uber.com/" },
+  { match: /\bbolt\b/i,         url: "https://bolt.eu/" },
+  { match: /\bcabify\b/i,       url: "https://cabify.com/" },
+  { match: /\bdidi\b/i,         url: "https://web.didiglobal.com/" },
+  { match: /\bindrive|in.drive\b/i, url: "https://indrive.com/" },
+  { match: /\blyft\b/i,         url: "https://www.lyft.com/" },
+  { match: /\bfree.?now|mytaxi\b/i, url: "https://free-now.com/" },
+  { match: /\bgrab\b/i,         url: "https://www.grab.com/" },
+  { match: /\bola\b/i,          url: "https://www.olacabs.com/" },
+  { match: /\bkakao.?t\b/i,     url: "https://kakaot.kakao.com/" },
+  { match: /\bgett\b/i,         url: "https://gett.com/" },
+  { match: /\b99\b/i,           url: "https://99app.com/" },
+  { match: /\byandex\b/i,       url: "https://yandex.com/maps/" },
+  { match: /\bcareem\b/i,       url: "https://www.careem.com/" },
+];
+function resolveTransportUrl(name: string, providedUrl: string | undefined, city: string, country?: string, type?: string): string {
+  const normalizedName = normalizeCityKey(name);
+  const normalizedType = normalizeCityKey(type);
+  const officialTaxi = `https://www.google.com/maps/search/${encodeURIComponent(`Taxi oficial ${city} ${country || ""}`)}`;
+  const airportTransfer = `https://www.google.com/search?q=${encodeURIComponent(`traslado aeropuerto oficial ${city} ${country || ""}`)}`;
+
+  if (/aerocity|taxidemadrid|taxi de madrid|taxi.?madrid/.test(normalizedName)) {
+    return normalizedType.includes("aerop") || normalizedName.includes("aerocity") ? airportTransfer : officialTaxi;
   }
 
-  return (
-    <div style={{ width: "100%", height, overflow: "hidden" }}>
-      <img
-        src={imgFailed ? fallbackUrl : src}
-        alt={query}
-        style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
-        onError={() => setImgFailed(true)}
-      />
-    </div>
-  );
+  if (isValidHttpUrl(providedUrl)) {
+    const parsed = new URL(providedUrl!);
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
+    const u = providedUrl!.toLowerCase();
+    const badDomains = ["aerocity.com", "taxidemadrid.com"];
+    const isBlocked = badDomains.some(d => host === d || host.endsWith(`.${d}`));
+    const cityKey = normalizeCityKey(city).replace(/\s+/g, "");
+    const blacklist = ["madrid", "barcelona", "paris", "london", "roma", "rome", "berlin", "lisboa", "lisbon", "amsterdam"];
+    const hardcodedToOther = blacklist.some(c => u.includes(c) && c !== cityKey && !u.includes(cityKey));
+    if (!isBlocked && !hardcodedToOther) return providedUrl!;
+  }
+
+  for (const a of APP_URLS) {
+    if (a.match.test(name)) return a.url;
+  }
+  if (normalizedType.includes("aerop") || normalizedName.includes("airport") || normalizedName.includes("aeropuerto")) return airportTransfer;
+  if (normalizedType.includes("taxi") || normalizedName.includes("taxi")) return officialTaxi;
+  if (/metro|bus|tranv|train|tren|transit|public|publico|público/.test(normalizedName + " " + normalizedType)) {
+    return `https://www.google.com/maps/dir/?api=1&travelmode=transit&destination=${encodeURIComponent(`${city}, ${country || ""}`)}`;
+  }
+  return `https://www.google.com/maps/search/${encodeURIComponent(`${name || "transporte"} ${city} ${country || ""}`)}`;
 }
 
-// ── Subcomponentes ────────────────────────────────────────────────────────────
-function RestaurantsList({ restaurants, locale }: { restaurants: Restaurant[]; locale: Locale }) {
-  if (!restaurants?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "No hay restaurantes" : "No restaurants"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Restaurantes" : "Restaurants"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Dónde comer" : "Where to eat"}</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 18, padding: "0 24px 24px" }}>
-        {restaurants.map((r, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 12, padding: 18, boxShadow: "0 1px 4px rgba(0,0,0,0.05)" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A" }}>{r.name}</div>
-              <span style={{ background: "#FFF3E0", color: "#E65100", fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }}>{r.priceRange}</span>
-            </div>
-            <div style={{ fontSize: 12, color: "#888", marginBottom: 6 }}>{r.type} · {r.zone}</div>
-            <div style={{ fontSize: 13, color: "#52525B", lineHeight: 1.5 }}>{r.specialty}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function EventsList({ events, locale }: { events: Event[]; locale: Locale }) {
-  if (!events?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "No hay eventos" : "No events"}</div>;
-  const typeLabels: Record<string, string> = { festival: "Festival", concert: "Concierto", permanent: "Atracción", sport: "Deporte", market: "Mercado", cinema: "Cine" };
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Eventos" : "Events"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Actividades destacadas" : "Featured activities"}</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 20, padding: 24 }}>
-        {events.map((ev, i) => (
-          <div key={i} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1px solid #E8E7E3", boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-            <div style={{ position: "relative", width: "100%" }}>
-              <SmartPhoto query={ev.venue ?? ev.name} fallbackUrl={PEXELS_FALLBACKS[ev.type] ?? PEXELS_FALLBACKS.default} height={200} />
-              <span style={{ position: "absolute", bottom: 10, left: 10, background: "#FF6B1A", color: "#fff", fontSize: 11, fontWeight: 700, padding: "4px 12px", borderRadius: 999 }}>{typeLabels[ev.type] ?? ev.type}</span>
-            </div>
-            <div style={{ padding: 16 }}>
-              <h3 style={{ margin: "0 0 6px", fontSize: 15, fontWeight: 700, color: "#18181B" }}>{ev.name}</h3>
-              <p style={{ margin: 0, fontSize: 13, color: "#52525B", lineHeight: 1.5 }}>{ev.description}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function HotelsList({ hotels, locale }: { hotels: Hotel[]; locale: Locale }) {
-  if (!hotels?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "No hay hoteles" : "No hotels"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Hoteles" : "Hotels"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Alojamiento" : "Accommodation"}</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 18, padding: "0 24px 24px" }}>
-        {hotels.map((h, i) => {
-          const platform = h.platform ?? "Booking.com";
-          const pc = HOTEL_COLORS[platform] ?? { accent: "#0071c2", label: "Booking" };
-          return (
-            <div key={i} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", border: "1px solid #E8E7E3" }}>
-              {h.photoUrl && <img src={h.photoUrl} alt={h.name} style={{ width: "100%", height: 160, objectFit: "cover" }} />}
-              <div style={{ padding: 16 }}>
-                <div style={{ fontWeight: 700, fontSize: 15, color: "#1A1A1A", marginBottom: 8 }}>{h.name} {"★".repeat(h.stars)}</div>
-                <div style={{ fontSize: 12, color: "#888", marginBottom: 8 }}>{h.address}</div>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <span style={{ fontSize: 12, fontWeight: 600 }}>{h.reviewScore}/10</span>
-                  <span style={{ fontWeight: 700, color: "#FF6B1A" }}>{h.pricePerNight} {h.currency}</span>
-                </div>
-                {h.url && <a href={h.url} target="_blank" style={{ display: "block", marginTop: 12, padding: "10px 16px", background: pc.accent, color: "#fff", borderRadius: 8, textAlign: "center", textDecoration: "none", fontWeight: 600 }}>Ver en {pc.label}</a>}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function SecurityList({ alerts, locale }: { alerts: SecurityAlert[]; locale: Locale }) {
-  if (!alerts?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "Sin alertas" : "No alerts"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Seguridad" : "Security"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Información importante" : "Important info"}</p>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 24px 24px" }}>
-        {alerts.map((a, i) => {
-          const rk = (a.level ?? "bajo") as keyof typeof RISK;
-          const r = RISK[rk] ?? RISK.bajo;
-          return (
-            <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 12, padding: 16, borderLeft: `4px solid ${r.bar}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-                <span style={{ background: r.badge.bg, color: r.badge.color, padding: "2px 10px", borderRadius: 999, fontSize: 12, fontWeight: 700 }}>{a.level?.toUpperCase()}</span>
-                <span style={{ fontWeight: 700, fontSize: 14, color: "#1A1A1A" }}>{a.zone}</span>
-              </div>
-              <p style={{ margin: 0, fontSize: 13, color: "#52525B" }}>{a.description}</p>
-              {a.tip && <p style={{ margin: "8px 0 0", fontSize: 12, color: "#3498DB", fontStyle: "italic" }}>💡 {a.tip}</p>}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function GastronomyList({ items, locale }: { items?: GastronomyItem[]; locale: Locale }) {
-  if (!items?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "Sin gastronomía" : "No gastronomy"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Gastronomía" : "Gastronomy"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Platos típicos" : "Local dishes"}</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 18, padding: "0 24px 24px" }}>
-        {items.map((item, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 14, overflow: "hidden" }}>
-            <SmartPhoto query={item.name} fallbackUrl={PEXELS_FALLBACKS.gastronomy} height={170} />
-            <div style={{ padding: 14 }}>
-              <div style={{ fontWeight: 700, fontSize: 15, color: "#18181B", marginBottom: 6 }}>{item.name}</div>
-              <div style={{ fontSize: 13, color: "#52525B" }}>{item.description}</div>
-              {item.priceRange && <div style={{ marginTop: 8, fontWeight: 700, color: "#FF6B1A" }}>{item.priceRange}</div>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TipsList({ items, locale }: { items?: TipItem[]; locale: Locale }) {
-  if (!items?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "Sin consejos" : "No tips"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Consejos" : "Tips"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Recomendaciones" : "Recommendations"}</p>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12, padding: "0 24px 24px" }}>
-        {items.map((tip, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 12, padding: 16, display: "flex", gap: 14 }}>
-            <span style={{ fontSize: 22 }}>{tip.icon}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#18181B", marginBottom: 4 }}>{tip.title}</div>
-              <div style={{ fontSize: 13, color: "#52525B" }}>{tip.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BudgetDisplay({ budget, locale }: { budget?: BudgetBreakdown; locale: Locale }) {
-  if (!budget) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "Sin presupuesto" : "No budget"}</div>;
-  const rows = [
-    { label: locale === "es" ? "Alojamiento" : "Accommodation", value: budget.accommodation, icon: "🏨" },
-    { label: locale === "es" ? "Transporte" : "Transport", value: budget.transport, icon: "✈️" },
-    { label: locale === "es" ? "Alimentación" : "Food", value: budget.food, icon: "🍽️" },
-    { label: locale === "es" ? "Actividades" : "Activities", value: budget.activities, icon: "🎭" },
-  ];
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Presupuesto" : "Budget"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Costos estimados" : "Estimated costs"}</p>
-      </div>
-      <div style={{ padding: "0 24px 24px" }}>
-        {rows.map((r, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 10, padding: "12px 16px", marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
-            <span style={{ fontSize: 13, color: "#52525B" }}>{r.icon} {r.label}</span>
-            <span style={{ fontWeight: 700, color: "#18181B" }}>{r.value}</span>
-          </div>
-        ))}
-        <div style={{ background: "#FFF3E0", border: "1px solid #FDBA74", borderRadius: 12, padding: 16, display: "flex", justifyContent: "space-between" }}>
-          <span style={{ fontWeight: 700, color: "#E65100" }}>TOTAL</span>
-          <span style={{ fontWeight: 700, fontSize: 18, color: "#E65100" }}>{budget.total}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PrepList({ items, locale }: { items?: PrepItem[]; locale: Locale }) {
-  if (!items?.length) return <div style={{ textAlign: "center", padding: 40, color: "#888" }}>{locale === "es" ? "Sin preparación" : "No prep"}</div>;
-  return (
-    <div>
-      <div style={{ padding: "24px 24px 0" }}>
-        <h2 style={{ fontSize: 21, fontWeight: 700, color: "#18181B", margin: "0 0 4px" }}>{locale === "es" ? "Preparación" : "Preparation"}</h2>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 20px" }}>{locale === "es" ? "Antes de viajar" : "Before traveling"}</p>
-      </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 14, padding: "0 24px 24px" }}>
-        {items.map((item, i) => (
-          <div key={i} style={{ background: "#fff", border: "1px solid #E8E7E3", borderRadius: 12, padding: 16, display: "flex", gap: 12 }}>
-            <span style={{ fontSize: 24 }}>{item.icon}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 14, color: "#18181B", marginBottom: 4 }}>{item.title}</div>
-              <div style={{ fontSize: 13, color: "#52525B" }}>{item.description}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ── Componente principal ──────────────────────────────────────────────────────
+/* --------------------------------- component --------------------------------- */
 export default function TravelExtrasTabs({ data, locale, from, to, pax }: Props) {
-  const [activeTab, setActiveTab] = useState("restaurants");
+  const city = data.city;
+  const country = data.country;
 
-  const tabs = [
-    { id: "restaurants", label: locale === "es" ? "Restaurantes" : "Restaurants", icon: "🍽️" },
-    { id: "events", label: locale === "es" ? "Eventos" : "Events", icon: "🎭" },
-    { id: "hotels", label: locale === "es" ? "Hoteles" : "Hotels", icon: "🏨" },
-    { id: "security", label: locale === "es" ? "Seguridad" : "Security", icon: "🛡️" },
-    { id: "gastronomy", label: locale === "es" ? "Gastronomía" : "Gastronomy", icon: "🍴" },
-    { id: "tips", label: locale === "es" ? "Consejos" : "Tips", icon: "💡" },
-    { id: "budget", label: locale === "es" ? "Presupuesto" : "Budget", icon: "💰" },
-    { id: "prep", label: locale === "es" ? "Preparación" : "Prep", icon: "📋" },
-  ];
+  const [tab, setTab] = useState<Tab>("flights");
+  const [apiData, setApiData] = useState<ApiResp | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [autoOrigin, setAutoOrigin] = useState<{ city?: string; iata?: string }>({});
+
+  // Auto-detección de origen del navegador.
+  useEffect(() => {
+    let alive = true;
+    fetch("https://ipapi.co/json/")
+      .then(r => r.ok ? r.json() : null)
+      .then(j => {
+        if (!alive || !j) return;
+        const c = j.city as string | undefined;
+        const iata = cleanIata(undefined, c);
+        setAutoOrigin({ city: c, iata });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
+  const effOriginCity = autoOrigin.city;
+  const effOriginIATA = autoOrigin.iata;
+
+  const qs = useMemo(() => {
+    const p = new URLSearchParams({
+      city, country,
+      from, to,
+      pax: String(pax ?? 1),
+    });
+    if (effOriginCity) p.set("originCity", effOriginCity);
+    if (effOriginIATA) p.set("originIATA", effOriginIATA);
+    return p.toString();
+  }, [city, country, from, to, pax, effOriginCity, effOriginIATA]);
+
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setError(null);
+    fetch(`/api/travel-extras?${qs}`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(j => { if (alive) setApiData(j); })
+      .catch(e => { if (alive) setError(e.message); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, [qs]);
+
+  const trip = {
+    skyscanner:   buildSkyscannerUrl({ from, to, originCity: effOriginCity, originIATA: effOriginIATA, destCity: city, pax: pax ?? 1 }),
+    googleFlights:buildGoogleFlightsUrl({ from, to, originCity: effOriginCity, originIATA: effOriginIATA, destCity: city, pax: pax ?? 1 }),
+    bookingCars:  buildBookingCarsUrl({ city, country, from, to }),
+    kayakCars:    buildKayakCarsUrl({ city, from, to }),
+    viator:       buildViatorSearchUrl({ city, from, to, pax: pax ?? 1 }),
+    getYourGuide: buildGetYourGuideSearchUrl({ city, from, to, pax: pax ?? 1 }),
+    city, from, to, pax: pax ?? 1,
+  };
 
   return (
-    <div style={{ background: "#F4F3EF", minHeight: "100vh" }}>
-      {/* Header con info del viaje */}
-      <div style={{ background: "#fff", borderBottom: "1px solid #E8E7E3", padding: "16px 24px" }}>
-        <div style={{ fontSize: 14, color: "#71717A" }}>
-          📅 {from} → {to} · 👥 {pax} {locale === "es" ? "viajeros" : "travelers"}
-        </div>
-      </div>
-
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, padding: "12px 24px", overflowX: "auto", background: "#fff", borderBottom: "1px solid #E8E7E3" }}>
-        {tabs.map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{
-              padding: "8px 16px",
-              borderRadius: 999,
-              border: "none",
-              cursor: "pointer",
-              fontSize: 13,
-              fontWeight: 600,
-              whiteSpace: "nowrap",
-              transition: "all 0.15s",
-              background: activeTab === tab.id ? "#FF6B1A" : "#F0EFE9",
-              color: activeTab === tab.id ? "#fff" : "#555",
-            }}
-          >
-            {tab.icon} {tab.label}
+    <section className="rounded-2xl border bg-white shadow-sm">
+      <div className="flex gap-1 overflow-x-auto border-b p-2">
+        {TABS.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition ${
+              tab === t.id ? "bg-black text-white" : "text-gray-600 hover:bg-gray-100"
+            }`}>
+            <span>{t.icon}</span>{t.label}
+            {apiData?.meta?.counts?.[t.id] != null && (
+              <span className="ml-1 rounded-full bg-gray-200 px-2 text-xs text-gray-700">
+                {apiData.meta.counts[t.id]}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {/* Contenido */}
-      <div style={{ paddingTop: 8 }}>
-        {activeTab === "restaurants" && <RestaurantsList restaurants={data.restaurants ?? []} locale={locale} />}
-        {activeTab === "events" && <EventsList events={data.events ?? []} locale={locale} />}
-        {activeTab === "hotels" && <HotelsList hotels={data.hotels ?? []} locale={locale} />}
-        {activeTab === "security" && <SecurityList alerts={data.alerts ?? []} locale={locale} />}
-        {activeTab === "gastronomy" && <GastronomyList items={data.gastronomy} locale={locale} />}
-        {activeTab === "tips" && <TipsList items={data.tips} locale={locale} />}
-        {activeTab === "budget" && <BudgetDisplay budget={data.budgetBreakdown} locale={locale} />}
-        {activeTab === "prep" && <PrepList items={data.preparation} locale={locale} />}
+      <div className="p-4">
+        {loading && <div className="py-10 text-center text-gray-500">{locale === "es" ? "Buscando opciones actualizadas…" : "Searching updated options…"}</div>}
+        {error && <div className="py-10 text-center text-red-600">Error: {error}</div>}
+        {!loading && !error && apiData && (
+          <>
+            {tab === "flights"   && <FlightsList   items={apiData.flights}   trip={trip} />}
+            {tab === "cars"      && <CarsList      items={apiData.cars}      trip={trip} />}
+            {tab === "transport" && <TransportList items={apiData.transport} city={city} country={country} />}
+            {tab === "tours"     && <ToursList     items={apiData.tours}     trip={trip} />}
+            <p className="mt-4 text-xs text-gray-400">
+              {locale === "es" ? "Origen detectado" : "Detected origin"}: {effOriginCity || "—"}{effOriginIATA ? ` (${effOriginIATA})` : ""} ·
+              {" "}{locale === "es" ? "Fuentes" : "Sources"}: {Object.entries(apiData.meta.sources).map(([k,v]) => `${k}:${v}`).join(" · ")}
+            </p>
+          </>
+        )}
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------ subcomponentes ----------------------------- */
+function Price({ p }: { p?: { amount?: number; currency?: string; estimated?: boolean } }) {
+  if (!p?.amount) return null;
+  return (
+    <span className="text-base font-semibold">
+      {p.estimated ? "~" : ""}{p.currency || "USD"} {Math.round(p.amount)}
+    </span>
+  );
+}
+
+function Card({ children }: { children: React.ReactNode }) {
+  return <div className="rounded-xl border p-4 hover:shadow-md transition">{children}</div>;
+}
+
+type TripLinks = {
+  skyscanner: string; googleFlights: string;
+  bookingCars: string; kayakCars: string;
+  viator: string; getYourGuide: string;
+  city: string; from: string; to: string; pax: number;
+};
+
+function FlightsList({ items, trip }: { items: any[]; trip: TripLinks }) {
+  if (!items.length) {
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card>
+          <div className="font-semibold">Buscar vuelos con tus fechas</div>
+          <div className="mt-1 text-sm text-gray-600">Google Flights y Skyscanner pre-rellenados con destino, fechas y pasajeros.</div>
+          <div className="mt-3 flex gap-2">
+            <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={trip.googleFlights} target="_blank" rel="noreferrer">Google Flights ↗</a>
+            <a className="rounded-lg border px-3 py-1.5 text-xs" href={trip.skyscanner} target="_blank" rel="noreferrer">Skyscanner ↗</a>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {items.map((f, i) => (
+        <Card key={i}>
+          <div className="flex items-center justify-between">
+            <div className="font-semibold">{f.airline} {f.airlineCode ? `(${f.airlineCode})` : ""}</div>
+            <Price p={f.price} />
+          </div>
+          <div className="mt-1 text-sm text-gray-600">
+            {f.stops === 0 ? "Directo" : `${f.stops} escala(s)`} · {f.estDurationHrs ? `${f.estDurationHrs}h` : f.duration ?? ""}
+          </div>
+          {f.notes && <div className="mt-1 text-xs text-gray-500">{f.notes}</div>}
+          <div className="mt-3 flex gap-2">
+            <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={trip.googleFlights} target="_blank" rel="noreferrer">Google Flights</a>
+            <a className="rounded-lg border px-3 py-1.5 text-xs" href={trip.skyscanner} target="_blank" rel="noreferrer">Skyscanner</a>
+          </div>
+        </Card>
+      ))}
     </div>
   );
+}
+
+function CarsList({ items, trip }: { items: any[]; trip: TripLinks }) {
+  const card = (
+    <Card>
+      <div className="font-semibold">Buscar autos con tus fechas</div>
+      <div className="mt-1 text-sm text-gray-600">Booking.com Cars y Kayak pre-rellenados con ciudad y fechas de recogida/devolución.</div>
+      <div className="mt-3 flex gap-2">
+        <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={trip.bookingCars} target="_blank" rel="noreferrer">Booking Cars ↗</a>
+        <a className="rounded-lg border px-3 py-1.5 text-xs" href={trip.kayakCars} target="_blank" rel="noreferrer">Kayak ↗</a>
+      </div>
+    </Card>
+  );
+  if (!items.length) return <div className="grid gap-3 md:grid-cols-2">{card}</div>;
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {items.map((c, i) => (
+        <Card key={i}>
+          <div className="flex items-center justify-between">
+            <div className="font-semibold">{c.company} · <span className="text-gray-500">{c.category}</span></div>
+            <Price p={{ amount: c.price?.total, currency: c.price?.currency, estimated: true }} />
+          </div>
+          <div className="mt-1 text-sm text-gray-600">{c.exampleModel}</div>
+          {c.pickupHint && <div className="text-xs text-gray-500">Retiro: {c.pickupHint}</div>}
+          <div className="mt-1 text-xs text-gray-500">~USD {c.price?.perDay}/día</div>
+          <div className="mt-3 flex gap-2">
+            <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={trip.bookingCars} target="_blank" rel="noreferrer">Booking Cars</a>
+            <a className="rounded-lg border px-3 py-1.5 text-xs" href={trip.kayakCars} target="_blank" rel="noreferrer">Kayak</a>
+          </div>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function TransportList({ items, city, country }: { items: any[]; city: string; country?: string }) {
+  if (!items.length) return <Empty />;
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {items.map((t, i) => {
+        const safeUrl = resolveTransportUrl(t.name || "", t.bookUrl, city, country, t.type);
+        const rome2rio = `https://www.rome2rio.com/map/${encodeURIComponent(city)}`;
+        return (
+          <Card key={i}>
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">{t.name}</div>
+              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs">{t.type}</span>
+            </div>
+            {t.estPriceUSD && <div className="mt-1 text-sm">~USD {t.estPriceUSD} por trayecto</div>}
+            {t.coverage && <div className="text-xs text-gray-500">Cobertura: {t.coverage}</div>}
+            {t.safetyTip && <div className="mt-1 text-xs text-amber-700">⚠ {t.safetyTip}</div>}
+            <div className="mt-3 flex gap-2">
+              <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={safeUrl} target="_blank" rel="noreferrer">Abrir app / web</a>
+              <a className="rounded-lg border px-3 py-1.5 text-xs" href={rome2rio} target="_blank" rel="noreferrer">Rome2Rio</a>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function ToursList({ items, trip }: { items: any[]; trip: TripLinks }) {
+  if (!items.length) {
+    return (
+      <div className="grid gap-3 md:grid-cols-2">
+        <Card>
+          <div className="font-semibold">Buscar tours con tus fechas</div>
+          <div className="mt-1 text-sm text-gray-600">Viator y GetYourGuide pre-rellenados con destino, fechas y viajeros.</div>
+          <div className="mt-3 flex gap-2">
+            <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={trip.getYourGuide} target="_blank" rel="noreferrer">GetYourGuide ↗</a>
+            <a className="rounded-lg border px-3 py-1.5 text-xs" href={trip.viator} target="_blank" rel="noreferrer">Viator ↗</a>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {items.map((t, i) => {
+        const query = t.title || t.category || "tours";
+        const gygUrl = withTripParams(t.bookUrl, { city: trip.city, from: trip.from, to: trip.to, pax: trip.pax, query, provider: "gyg" });
+        const viatorUrl = withTripParams(t.bookUrlAlt, { city: trip.city, from: trip.from, to: trip.to, pax: trip.pax, query, provider: "viator" });
+        return (
+          <Card key={i}>
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">{t.title}</div>
+              <Price p={t.price} />
+            </div>
+            <div className="mt-1 text-xs text-gray-500">{t.category} · {t.durationHrs}h {t.bestTimeOfDay ? `· ${t.bestTimeOfDay}` : ""}</div>
+            {t.whyIconic && <div className="mt-2 text-sm text-gray-700">{t.whyIconic}</div>}
+            <div className="mt-3 flex gap-2">
+              <a className="rounded-lg bg-black px-3 py-1.5 text-xs text-white" href={gygUrl} target="_blank" rel="noreferrer">GetYourGuide</a>
+              <a className="rounded-lg border px-3 py-1.5 text-xs" href={viatorUrl} target="_blank" rel="noreferrer">Viator</a>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function Empty() {
+  return <div className="py-8 text-center text-sm text-gray-500">Sin resultados para esta categoría.</div>;
 }
