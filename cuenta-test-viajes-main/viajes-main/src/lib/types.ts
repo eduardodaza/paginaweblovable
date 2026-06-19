@@ -157,6 +157,9 @@ export interface ItineraryData {
   gastronomy?: GastronomyItem[];
   tips?: TipItem[];
   budgetBreakdown?: BudgetBreakdown;
+  // Info de rate-limit de Groq detectada durante la generación (si aplica),
+  // usada para mostrar un mensaje claro y habilitar el botón de reintentar.
+  rateLimitInfo?: { section: string; retryAfterSeconds: number; message: string };
 }
 
 // ─── Form / Input types ────────────────────────────────────────
