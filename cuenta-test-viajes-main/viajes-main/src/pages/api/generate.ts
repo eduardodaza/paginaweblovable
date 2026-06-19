@@ -66,8 +66,20 @@ async function callGroq(prompt: string, maxTokens: number, temperature = 0.7): P
 const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 function retryAfterMs(errBody: string): number {
-  const m = /try again in ([\d.]+)s/i.exec(errBody);
-  return m ? Math.ceil(parseFloat(m[1]) * 1000) + 2000 : 20000;
+  // Groq devuelve formatos como "try again in 1h45m57.312s" o "try again in 20.5s".
+  // El regex anterior solo capturaba los segundos finales, ignorando horas/minutos,
+  // lo que causaba reintentos prematuros que volvían a fallar de inmediato.
+  const m = /try again in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i.exec(errBody);
+  if (!m) return 20000;
+  const h = parseFloat(m[1] || "0");
+  const min = parseFloat(m[2] || "0");
+  const s = parseFloat(m[3] || "0");
+  const totalMs = (h * 3600 + min * 60 + s) * 1000;
+  return totalMs > 0 ? Math.ceil(totalMs) + 2000 : 20000;
+}
+
+function isRateLimitTpdError(errMsg: string): boolean {
+  return /rate_limit_exceeded/i.test(errMsg) && /tokens per day|TPD/i.test(errMsg);
 }
 
 async function callGroqWithRetry(prompt: string, maxTokens: number, temperature = 0.6): Promise<string> {
@@ -77,6 +89,13 @@ async function callGroqWithRetry(prompt: string, maxTokens: number, temperature 
     const msg = String(err);
     if (msg.includes("429")) {
       const wait = retryAfterMs(msg);
+      // Si la espera es larga (cuota diaria agotada), no tiene sentido dormir
+      // dentro de la función serverless — Vercel la mataría por timeout mucho
+      // antes. En ese caso fallamos rápido y dejamos que el error suba con
+      // la info de cuánto hay que esperar, para mostrárselo al usuario.
+      if (wait > 25000) {
+        throw err;
+      }
       console.warn(`[groq-retry] 429 — waiting ${wait}ms then retrying once...`);
       await sleep(wait);
       return await callGroq(prompt, maxTokens, temperature);
@@ -122,7 +141,7 @@ Return ONLY a JSON array (no markdown, no commentary). Each element:
 Aim for 5 to 10 entries. If a destination genuinely has no special tradition in this window, still return the best ICONIC recurring shows/nightlife (do not return an empty array unless ${form.city} has truly nothing).`;
 
   try {
-    const raw = await callGroq(prompt, 2500, 0.5);
+    const raw = await callGroqWithRetry(prompt, 2500, 0.5);
     const arr = JSON.parse(extractJSONArray(raw));
     if (!Array.isArray(arr)) return [];
     return arr
@@ -398,7 +417,11 @@ function normalizeDayTimes(itinerary: ItineraryData, dayStart: string, dayEnd: s
 // ── Genera días de forma SECUENCIAL en lotes de 3 ────────────
 // Secuencial para respetar el límite de 6000 TPM del free tier de Groq.
 // Cada lote pide máximo 3 días con formato compacto (~4500 tokens de salida).
-async function generateDaysSequential(form: TripFormData, totalDays: number): Promise<ItineraryData["days"]> {
+async function generateDaysSequential(
+  form: TripFormData,
+  totalDays: number,
+  onError?: (section: string, err: unknown) => void
+): Promise<ItineraryData["days"]> {
   const BATCH_SIZE = 3; // 3 días * ~7 items * ~150 tokens/item = ~3150 tokens por lote
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const allDays: any[] = [];
@@ -409,9 +432,10 @@ async function generateDaysSequential(form: TripFormData, totalDays: number): Pr
 
     let raw: string;
     try {
-      raw = await callGroq(prompt, 7500, 0.7);
+      raw = await callGroqWithRetry(prompt, 7500, 0.7);
     } catch (err) {
       console.error(`[days batch ${fromDay}-${toDay}] Groq call failed:`, err);
+      onError?.("days", err);
       continue;
     }
 
@@ -459,8 +483,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const ed = new Date(form.endDate + "T12:00:00");
     const totalDays = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
 
+    // Info de rate-limit detectada durante la generación, para informar
+    // al usuario con precisión en vez de devolverle un itinerario vacío
+    // sin explicación.
+    let rateLimitInfo: { section: string; retryAfterSeconds: number; message: string } | null = null;
+    const recordRateLimit = (section: string, err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (isRateLimitTpdError(msg)) {
+        const m = /try again in (?:(\d+)h)?(?:(\d+)m)?(?:([\d.]+)s)?/i.exec(msg);
+        const h = parseFloat(m?.[1] || "0"), min = parseFloat(m?.[2] || "0"), s = parseFloat(m?.[3] || "0");
+        const retryAfterSeconds = Math.ceil(h * 3600 + min * 60 + s);
+        if (!rateLimitInfo || retryAfterSeconds > rateLimitInfo.retryAfterSeconds) {
+          rateLimitInfo = { section, retryAfterSeconds, message: msg };
+        }
+      }
+    };
+
     // ── PASO 1: Días (secuencial, respeta TPM) ────────────────
-    const days = await generateDaysSequential(form, totalDays);
+    const days = await generateDaysSequential(form, totalDays, recordRateLimit);
 
     // ── PASO 2: Metadata (secuencial tras los días) ───────────
     let metadata: Record<string, unknown> = {};
@@ -470,6 +510,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata = JSON.parse(metaStr);
     } catch (err) {
       console.error("[metadata] failed:", err);
+      recordRateLimit("metadata", err);
     }
 
     // ── PASO 3: Eventos tradicionales (secuencial) ────────────
@@ -568,6 +609,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     normalizeDayTimes(itinerary, form.dayStartTime || "08:00", form.dayEndTime || "23:00");
 
     itinerary.generatedBy = `Groq LLaMA 3.3 70B · ${sources.length ? sources.join(" · ") : "no external events"} · Wikidata`;
+    if (rateLimitInfo) {
+      itinerary.rateLimitInfo = rateLimitInfo;
+    }
 
     return res.status(200).json(itinerary);
   } catch (err) {
