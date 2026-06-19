@@ -141,7 +141,7 @@ Return ONLY a JSON array (no markdown, no commentary). Each element:
 Aim for 5 to 10 entries. If a destination genuinely has no special tradition in this window, still return the best ICONIC recurring shows/nightlife (do not return an empty array unless ${form.city} has truly nothing).`;
 
   try {
-    const raw = await callGroqWithRetry(prompt, 2500, 0.5);
+    const raw = await callGroq(prompt, 2500, 0.5);
     const arr = JSON.parse(extractJSONArray(raw));
     if (!Array.isArray(arr)) return [];
     return arr
@@ -432,7 +432,7 @@ async function generateDaysSequential(
 
     let raw: string;
     try {
-      raw = await callGroqWithRetry(prompt, 7500, 0.7);
+      raw = await callGroq(prompt, 7500, 0.7);
     } catch (err) {
       console.error(`[days batch ${fromDay}-${toDay}] Groq call failed:`, err);
       onError?.("days", err);
