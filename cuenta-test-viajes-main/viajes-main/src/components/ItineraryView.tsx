@@ -243,6 +243,7 @@ interface Props {
   form?: TripFormData | null;
   cityResults?: ItineraryData[];
   onRetryCity?: (cityIndex: number) => Promise<void>;
+  onRetrySection?: (section: string) => Promise<void>;
 }
 
 // ── NIGHT CSS (tema oscuro QEEQ-style — MISMO LAYOUT QUE DÍA) ───────────────
