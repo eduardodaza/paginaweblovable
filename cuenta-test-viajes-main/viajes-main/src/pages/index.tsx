@@ -26,8 +26,49 @@ async function fetchItinerary(form: TripFormData): Promise<ItineraryData> {
   return res.json();
 }
 
+// ── Llamada de RETRY PARCIAL: solo regenera la sección indicada ────────────
+// (días faltantes, metadata, o eventos) sin repetir todo el itinerario,
+// para no gastar tokens de nuevo en lo que ya salió bien.
+type RetrySection = "days" | "metadata" | "events";
+async function fetchItinerarySection(
+  form: TripFormData,
+  section: RetrySection,
+  missingDayNums?: number[]
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<any> {
+  const res = await fetch("/api/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...form, section, missingDayNums }),
+  });
+  if (!res.ok) throw new Error(`API error: ${res.status}`);
+  return res.json();
+}
+
 // ── Espera N ms (para respetar rate limit de Groq entre ciudades) ───────────
 function wait(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// ── Placeholder para una ciudad que falló en multidestino ───────────────────
+// Se guarda en vez de descartar la ciudad, para que el conteo de resultados
+// sea correcto y el botón "Reintentar [ciudad]" pueda aparecer.
+function emptyCityPlaceholder(form: TripFormData): ItineraryData {
+  return {
+    city: form.city,
+    country: form.country,
+    tagline: "",
+    summary: "",
+    weather: { maxTemp: 0, minTemp: 0, description: "" },
+    estimatedBudgetPerDay: "",
+    days: [],
+    restaurants: [],
+    events: [],
+    alerts: [],
+    hotels: [],
+    preparation: [],
+    gastronomy: [],
+    tips: [],
+  };
+}
 
 // ── Fusionar varios ItineraryData en uno solo ───────────────────────────────
 function mergeItineraries(results: ItineraryData[]): ItineraryData {
@@ -131,14 +172,21 @@ export default function Home() {
         const data = await fetchItinerary(stop.form);
         if (data?.days?.length > 0) {
           results.push(data);
+        } else {
+          // La ciudad no entregó días: guardamos un placeholder vacío
+          // (en vez de omitirla) para que el botón "Reintentar [ciudad]"
+          // aparezca correctamente y el conteo de ciudades sea el correcto.
+          results.push(emptyCityPlaceholder(stop.form));
         }
       } catch (err) {
         console.error(`[multi] Error en ${stop.form.city}:`, err);
-        // Continuar con las demás ciudades aunque una falle
+        // Continuar con las demás ciudades aunque una falle, pero sin
+        // perder el lugar de esa ciudad en los resultados.
+        results.push(emptyCityPlaceholder(stop.form));
       }
     }
 
-    if (results.length === 0) {
+    if (results.every(r => !r.days?.length)) {
       setError("No se pudo generar el itinerario. Intenta de nuevo.");
       setState("landing");
       return;
@@ -164,6 +212,67 @@ export default function Home() {
       }
     } catch (err) {
       console.error(`[retry] Error en ${form.city}:`, err);
+    }
+  }
+
+  // ── Retry parcial de UNA sección (pestaña) que falló ───────────────────────
+  // Se llama desde ItineraryView cuando el usuario pulsa "Reintentar" en una
+  // pestaña vacía. Solo regenera esa sección y la fusiona con lo que ya
+  // estaba bien, sin repetir toda la búsqueda ni gastar tokens de más.
+  // Solo aplica a destino único (multidestino ya tiene su propio retry por ciudad).
+  async function handleRetrySection(section: RetrySection) {
+    if (!lastForm || !itinerary) return;
+    try {
+      if (section === "days") {
+        const sd = new Date(lastForm.startDate + "T12:00:00");
+        const ed = new Date(lastForm.endDate + "T12:00:00");
+        const totalDays = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+        const existingNums = new Set((itinerary.days ?? []).map(d => d.dayNum));
+        const missing: number[] = [];
+        for (let n = 1; n <= totalDays; n++) if (!existingNums.has(n)) missing.push(n);
+        if (missing.length === 0) return;
+
+        const partial = await fetchItinerarySection(lastForm, "days", missing);
+        setItinerary(prev => {
+          if (!prev) return prev;
+          const merged = [...(prev.days ?? []), ...(partial.days ?? [])]
+            .sort((a, b) => (a.dayNum ?? 0) - (b.dayNum ?? 0));
+          return { ...prev, days: merged };
+        });
+      } else if (section === "events") {
+        const partial = await fetchItinerarySection(lastForm, "events");
+        setItinerary(prev => {
+          if (!prev) return prev;
+          const seen = new Set((prev.events ?? []).map(e => (e.name ?? "").toLowerCase().trim()));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const newEvents = (partial.events ?? []).filter((e: any) => e?.name && !seen.has(e.name.toLowerCase().trim()));
+          return { ...prev, events: [...(prev.events ?? []), ...newEvents] };
+        });
+      } else if (section === "metadata") {
+        const partial = await fetchItinerarySection(lastForm, "metadata");
+        setItinerary(prev => {
+          if (!prev) return prev;
+          const seen = new Set((prev.events ?? []).map(e => (e.name ?? "").toLowerCase().trim()));
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const newEvents = (partial.metaEvents ?? []).filter((e: any) => e?.name && !seen.has(e.name.toLowerCase().trim()));
+          return {
+            ...prev,
+            tagline: prev.tagline || partial.tagline,
+            summary: prev.summary || partial.summary,
+            weather: prev.weather ?? partial.weather,
+            estimatedBudgetPerDay: prev.estimatedBudgetPerDay || partial.estimatedBudgetPerDay,
+            restaurants: (prev.restaurants?.length ? prev.restaurants : partial.restaurants) ?? [],
+            alerts: (prev.alerts?.length ? prev.alerts : partial.alerts) ?? [],
+            preparation: (prev.preparation?.length ? prev.preparation : partial.preparation) ?? [],
+            gastronomy: (prev.gastronomy?.length ? prev.gastronomy : partial.gastronomy) ?? [],
+            tips: (prev.tips?.length ? prev.tips : partial.tips) ?? [],
+            budgetBreakdown: prev.budgetBreakdown ?? partial.budgetBreakdown,
+            events: [...(prev.events ?? []), ...newEvents],
+          };
+        });
+      }
+    } catch (err) {
+      console.error(`[retry-section:${section}] Error:`, err);
     }
   }
 
@@ -222,6 +331,7 @@ export default function Home() {
           form={lastForm}
           cityResults={cityResults}
           onRetryCity={handleRetryCity}
+          onRetrySection={cityResults.length <= 1 ? handleRetrySection : undefined}
         />
       )}
     </>
