@@ -513,6 +513,14 @@ function DayCardDay({ day, isOpen, onToggle, edits, onEdit, locale }: {
   const difficultyColor = (day.items?.length ?? 0) > 5 ? "#FEE2E2" : (day.items?.length ?? 0) > 3 ? "#FEF3C7" : "#D1FAE5";
   const difficultyText = (day.items?.length ?? 0) > 5 ? "#DC2626" : (day.items?.length ?? 0) > 3 ? "#D97706" : "#059669";
 
+  // Ruta del día en Google Maps (paradas en orden, con coordenadas si están disponibles)
+  const routeStops = (day.items ?? []).filter(it => ["sight", "food", "event", "beach", "night"].includes(it.type));
+  const q = (s: string) => encodeURIComponent(s.trim());
+  const waypoints = routeStops.map(it => it.lat && it.lon ? `${it.lat},${it.lon}` : q(`${it.name} ${day.zone ?? ""}`)).join("/");
+  const routeUrl = routeStops.length >= 2
+    ? `https://www.google.com/maps/dir/${waypoints}`
+    : routeStops.length === 1 ? `https://www.google.com/maps/search/?api=1&query=${q(`${routeStops[0].name} ${day.zone ?? ""}`)}` : null;
+
   return (
     <div className="iv-day-item">
       {/* QEEQ-style day header */}
@@ -530,6 +538,13 @@ function DayCardDay({ day, isOpen, onToggle, edits, onEdit, locale }: {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {routeUrl && (
+            <a href={routeUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 11, padding: "5px 12px", background: "linear-gradient(135deg,#FF6B1A,#FF9A3D)", color: "#fff", borderRadius: 12, textDecoration: "none", fontWeight: 600, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(255,107,26,0.35)" }}>
+              🗺 {locale === "es" ? "Ruta en Maps" : "Route on Maps"} ↗
+            </a>
+          )}
           <span style={{ background: difficultyColor, color: difficultyText, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 999 }}>
             {difficultyLabel}
           </span>
@@ -559,6 +574,14 @@ function DayCardNight({ day, isOpen, onToggle, edits, onEdit, locale }: {
   const difficultyColor = (day.items?.length ?? 0) > 5 ? "rgba(220,38,38,0.2)" : (day.items?.length ?? 0) > 3 ? "rgba(217,119,6,0.2)" : "rgba(5,150,105,0.2)";
   const difficultyText = (day.items?.length ?? 0) > 5 ? "#F87171" : (day.items?.length ?? 0) > 3 ? "#FBBF24" : "#34D399";
 
+  // Ruta del día en Google Maps (paradas en orden, con coordenadas si están disponibles)
+  const routeStops = (day.items ?? []).filter(it => ["sight", "food", "event", "beach", "night"].includes(it.type));
+  const q = (s: string) => encodeURIComponent(s.trim());
+  const waypoints = routeStops.map(it => it.lat && it.lon ? `${it.lat},${it.lon}` : q(`${it.name} ${day.zone ?? ""}`)).join("/");
+  const routeUrl = routeStops.length >= 2
+    ? `https://www.google.com/maps/dir/${waypoints}`
+    : routeStops.length === 1 ? `https://www.google.com/maps/search/?api=1&query=${q(`${routeStops[0].name} ${day.zone ?? ""}`)}` : null;
+
   return (
     <div className="iv-day-item">
       {/* QEEQ-style day header (night version) */}
@@ -576,6 +599,13 @@ function DayCardNight({ day, isOpen, onToggle, edits, onEdit, locale }: {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {routeUrl && (
+            <a href={routeUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 11, padding: "5px 12px", background: "linear-gradient(135deg,hsl(22 95% 55%),hsl(38 95% 58%))", color: "#fff", borderRadius: 12, textDecoration: "none", fontWeight: 600, whiteSpace: "nowrap", boxShadow: "0 4px 12px hsl(22 95% 55%/0.4)" }}>
+              🗺 {locale === "es" ? "Ruta en Maps" : "Route on Maps"} ↗
+            </a>
+          )}
           <span style={{ background: difficultyColor, color: difficultyText, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 999 }}>
             {difficultyLabel}
           </span>
