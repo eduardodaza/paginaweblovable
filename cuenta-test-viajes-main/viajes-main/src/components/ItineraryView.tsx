@@ -243,6 +243,7 @@ interface Props {
   form?: TripFormData | null;
   cityResults?: ItineraryData[];
   onRetryCity?: (cityIndex: number) => Promise<void>;
+  onRetrySection?: (section: "days" | "metadata" | "events") => Promise<void>;
 }
 
 // ── NIGHT CSS (tema oscuro QEEQ-style — MISMO LAYOUT QUE DÍA) ───────────────
@@ -1032,7 +1033,45 @@ function MultiCityPanel({ cities, renderContent, isDayTheme }: {
   );
 }
 
-// ── RetryButton ───────────────────────────────────────────────────────────────
+// ── RetrySectionButton ──────────────────────────────────────────────────────
+// Botón para reintentar SOLO la sección/pestaña que no trajo resultados,
+// sin repetir toda la búsqueda (ahorra tokens).
+function RetrySectionButton({ onRetry, locale, isDayTheme }: {
+  onRetry: () => Promise<void>; locale: Locale; isDayTheme: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  async function handle() {
+    setLoading(true);
+    await onRetry();
+    setLoading(false);
+    setDone(true);
+  }
+  return (
+    <div style={{ padding: isDayTheme ? "32px 24px" : "32px 0", textAlign: "center" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 13, color: isDayTheme ? "#777" : "rgba(255,255,255,0.55)" }}>
+        {locale === "es"
+          ? "Esta sección no se generó. Puedes reintentar solo esta parte sin repetir todo el viaje."
+          : "This section couldn't be generated. You can retry just this part without redoing the whole trip."}
+      </p>
+      <button onClick={handle} disabled={loading} style={{
+        padding: "8px 20px", borderRadius: 8, border: "none", cursor: loading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600,
+        background: isDayTheme ? "#FF6B1A" : "rgba(255,120,30,0.15)", color: isDayTheme ? "#fff" : "hsl(22 95% 65%)", opacity: loading ? 0.6 : 1,
+      }}>
+        {loading
+          ? (locale === "es" ? "Reintentando..." : "Retrying...")
+          : (locale === "es" ? "Reintentar esta sección" : "Retry this section")}
+      </button>
+      {done && (
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: isDayTheme ? "#999" : "rgba(255,255,255,0.4)" }}>
+          {locale === "es" ? "Si sigue vacío, intenta de nuevo en unos minutos." : "If it's still empty, try again in a few minutes."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+
 function RetryButton({ city, onRetry, locale, isDayTheme }: {
   city: string; onRetry: () => Promise<void>; locale: Locale; isDayTheme: boolean;
 }) {
@@ -1069,7 +1108,7 @@ const NAV_LABELS_EN: Record<string, string> = {
 // ═════════════════════════════════════════════════════════════════════════════
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 // ═════════════════════════════════════════════════════════════════════════════
-export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
+export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity, onRetrySection }: Props) {
   const [isDayTheme, setIsDayTheme] = useState(true); // Day theme by default
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security"|"preparation"|"gastronomy"|"tips"|"budget">("days");
   const totalDays = (data.days ?? []).length;
@@ -1305,6 +1344,15 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
                     </div>
                   </div>
                 )}
+                {/* Single-destination: faltan días por generar */}
+                {cityResults.length <= 1 && onRetrySection && form?.startDate && form?.endDate && (() => {
+                  const sd = new Date(form.startDate + "T12:00:00");
+                  const ed = new Date(form.endDate + "T12:00:00");
+                  const expectedDays = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+                  return totalDays < expectedDays ? (
+                    <RetrySectionButton onRetry={() => onRetrySection("days")} locale={locale} isDayTheme={isDayTheme} />
+                  ) : null;
+                })()}
                 {/* Expand/collapse all */}
                 {totalDays > 1 && (
                   <div style={{ padding: isDayTheme ? "12px 24px 4px" : "12px 0 4px", display: "flex", justifyContent: "flex-end" }}>
@@ -1328,14 +1376,22 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             {tab === "restaurants" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <RestaurantsList restaurants={city.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <RestaurantsList restaurants={data.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.restaurants?.length
+                    ? <RestaurantsList restaurants={data.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+                      : <RestaurantsList restaurants={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── EVENTS TAB ── */}
             {tab === "events" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <EventsList events={city.events ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <EventsList events={data.events ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.events?.length
+                    ? <EventsList events={data.events ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("events")} locale={locale} isDayTheme={isDayTheme} />
+                      : <EventsList events={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── HOTELS TAB ── */}
@@ -1382,20 +1438,41 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             {tab === "security" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <SecurityTab alerts={city.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <SecurityTab alerts={data.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.alerts?.length
+                    ? <SecurityTab alerts={data.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+                      : <SecurityTab alerts={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── PREPARATION TAB ── */}
-            {tab === "preparation" && <PreparationTab items={data.preparation} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "preparation" && (
+              data.preparation?.length || !onRetrySection
+                ? <PreparationTab items={data.preparation} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── GASTRONOMY TAB ── */}
-            {tab === "gastronomy" && <GastronomyTab items={data.gastronomy} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "gastronomy" && (
+              data.gastronomy?.length || !onRetrySection
+                ? <GastronomyTab items={data.gastronomy} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── TIPS TAB ── */}
-            {tab === "tips" && <TipsTab items={data.tips} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "tips" && (
+              data.tips?.length || !onRetrySection
+                ? <TipsTab items={data.tips} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── BUDGET TAB ── */}
-            {tab === "budget" && <BudgetTab budget={data.budgetBreakdown} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "budget" && (
+              data.budgetBreakdown || !onRetrySection
+                ? <BudgetTab budget={data.budgetBreakdown} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
+
 
           </main>
         </div>
