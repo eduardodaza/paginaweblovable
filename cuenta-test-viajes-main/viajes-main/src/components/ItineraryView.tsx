@@ -123,10 +123,10 @@ const PEXELS_FALLBACKS: Record<string, string> = {
 
 // ── SmartPhoto — Wikipedia primero, Pexels como garantía si falla ─────────────
 // A diferencia de WikiPhoto, usa height en px fijo y SIEMPRE muestra imagen.
-function SmartPhoto({ query, fallbackUrl, height, radius = 0 }: {
+function SmartPhoto({ query, fallbackUrl, height = "100%", radius = 0 }: {
   query: string;
   fallbackUrl: string;
-  height: number;
+  height?: number | string;
   radius?: number;
 }) {
   const [src, setSrc] = React.useState<string | null>(null);
@@ -243,7 +243,7 @@ interface Props {
   form?: TripFormData | null;
   cityResults?: ItineraryData[];
   onRetryCity?: (cityIndex: number) => Promise<void>;
-  onRetrySection?: (section: string) => Promise<void>;
+  onRetrySection?: (section: "days" | "metadata" | "events") => Promise<void>;
 }
 
 // ── NIGHT CSS (tema oscuro QEEQ-style — MISMO LAYOUT QUE DÍA) ───────────────
@@ -262,10 +262,10 @@ const NIGHT_CSS = `
 .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 .iv-layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; width: 100%; }
-.iv-sidebar { width: 240px; min-width: 240px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(240 45% 8%); border-right: 1px solid rgba(255,255,255,0.08); z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 16px rgba(0,0,0,0.3); }
+.iv-sidebar { width: clamp(220px, 19vw, 300px); min-width: clamp(220px, 19vw, 300px); position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(240 45% 8%); border-right: 1px solid rgba(255,255,255,0.08); z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 16px rgba(0,0,0,0.3); }
 .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 .iv-main { flex: 1; min-width: 0; padding: 0 0 80px; background: transparent; }
-.iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 20px; border: none; background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 13.5px; font-weight: 500; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.01em; }
+.iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 22px; border: none; background: transparent; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 14.5px; font-weight: 500; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.01em; }
 .iv-nav-btn:hover { background: rgba(255,107,26,0.1); color: rgba(255,255,255,0.95); }
 .iv-nav-btn.active { background: rgba(255,107,26,0.15); color: #FF6B1A; font-weight: 600; border-left: 3px solid #FF6B1A; padding-left: 17px; }
 .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding: 12px 24px; scrollbar-width: thin; border-bottom: 1px solid rgba(255,255,255,0.08); background: hsl(240 45% 10%); }
@@ -280,10 +280,10 @@ const NIGHT_CSS = `
 .iv-events-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 24px; }
 .iv-activity-row-night { display: flex; gap: 0; padding: 0; margin: 8px 0; background: rgba(255,255,255,0.04); border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.15); transition: box-shadow 0.2s, transform 0.2s; }
 .iv-activity-row-night:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.3); transform: translateY(-1px); }
-.iv-activity-thumb-night { width: 160px; min-width: 160px; height: 130px; overflow: hidden; border-radius: 0; background: rgba(255,255,255,0.06); flex-shrink: 0; }
-.iv-activity-content-night { padding: 14px 18px; flex: 1; min-width: 0; }
+.iv-activity-thumb-night { width: clamp(140px, 22vw, 210px); min-width: clamp(140px, 22vw, 210px); height: clamp(110px, 18vw, 190px); overflow: hidden; border-radius: 0; background: rgba(255,255,255,0.06); flex-shrink: 0; }
+.iv-activity-content-night { padding: 18px 22px; flex: 1; min-width: 0; }
 .iv-activity-time-tag-night { font-size: 11px; color: rgba(255,255,255,0.5); font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-.iv-activity-title-night { font-size: 15px; font-weight: 700; color: #fff; margin: 0 0 6px; line-height: 1.3; letter-spacing: -0.02em; }
+.iv-activity-title-night { font-size: 17px; font-weight: 700; color: #fff; margin: 0 0 6px; line-height: 1.3; letter-spacing: -0.02em; }
 .iv-activity-desc-night { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.6; margin: 0; }
 .iv-tip-box-blue-night { background: rgba(52,152,219,0.12); border-left: 3px solid #3498DB; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: rgba(130,200,255,0.9); line-height: 1.5; display: flex; align-items: flex-start; gap: 8px; }
 .iv-tip-box-amber-night { background: rgba(245,158,11,0.12); border-left: 3px solid #F59E0B; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: rgba(255,200,100,0.9); line-height: 1.5; display: flex; align-items: flex-start; gap: 8px; }
@@ -302,7 +302,6 @@ const NIGHT_CSS = `
 .iv-hotel-card-night:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
 .iv-section-title-night { font-size: 21px; font-weight: 700; color: #fff; margin: 0 0 4px; letter-spacing: -0.03em; }
 .iv-section-sub-night { font-size: 14px; color: rgba(255,255,255,0.5); margin: 0 0 20px; font-weight: 400; }
-@media (max-width: 900px) { .iv-events-grid { grid-template-columns: 1fr; } .iv-activity-thumb-night { width: 100px; min-width: 100px; } }
 @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 0 60px; } .iv-events-grid { grid-template-columns: 1fr; padding: 12px; } .iv-activity-row-night { margin: 8px 12px; } .iv-day-item { margin: 16px 12px 0; } }
 `;
 
@@ -322,10 +321,10 @@ const DAY_CSS = `
 .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
 .iv-layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; width: 100%; }
-.iv-sidebar { width: 240px; min-width: 240px; position: sticky; top: 0; height: 100vh; overflow-y: auto; background: #FFFFFF; border-right: 1px solid #E8E7E3; z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.04); }
+.iv-sidebar { width: clamp(220px, 19vw, 300px); min-width: clamp(220px, 19vw, 300px); position: sticky; top: 0; height: 100vh; overflow-y: auto; background: #FFFFFF; border-right: 1px solid #E8E7E3; z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.04); }
 .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: #D1D0CC; border-radius: 4px; }
 .iv-main { flex: 1; min-width: 0; padding: 0 0 80px; background: #F4F3EF; }
-.iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 12px 20px; border: none; background: transparent; color: #666; cursor: pointer; font-size: 13.5px; font-weight: 500; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.01em; }
+.iv-nav-btn { display: flex; align-items: center; gap: 10px; width: 100%; padding: 14px 22px; border: none; background: transparent; color: #666; cursor: pointer; font-size: 14.5px; font-weight: 500; transition: all 0.15s; text-align: left; white-space: nowrap; border-radius: 0; font-family: 'Plus Jakarta Sans', sans-serif; letter-spacing: -0.01em; }
 .iv-nav-btn:hover { background: #FFF4EF; color: #FF6B1A; }
 .iv-nav-btn.active { background: #FFF4EF; color: #FF6B1A; font-weight: 600; border-left: 3px solid #FF6B1A; padding-left: 17px; }
 .iv-tabs-scroll { display: flex; gap: 6px; overflow-x: auto; padding: 12px 24px; scrollbar-width: thin; border-bottom: 1px solid #E8E7E3; background: #fff; }
@@ -340,10 +339,10 @@ const DAY_CSS = `
 .iv-events-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; padding: 24px; }
 .iv-activity-row-qeeq { display: flex; gap: 0; padding: 0; margin: 8px 24px; background: #fff; border-radius: 12px; border: 1px solid #E8E7E3; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,0.04); transition: box-shadow 0.2s, transform 0.2s; }
 .iv-activity-row-qeeq:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.10); transform: translateY(-1px); }
-.iv-activity-thumb { width: 160px; min-width: 160px; height: 130px; overflow: hidden; border-radius: 0; background: #F0EFE9; flex-shrink: 0; }
-.iv-activity-content { padding: 14px 18px; flex: 1; min-width: 0; }
+.iv-activity-thumb { width: clamp(140px, 22vw, 210px); min-width: clamp(140px, 22vw, 210px); height: clamp(110px, 18vw, 190px); overflow: hidden; border-radius: 0; background: #F0EFE9; flex-shrink: 0; }
+.iv-activity-content { padding: 18px 22px; flex: 1; min-width: 0; }
 .iv-activity-time-tag { font-size: 11px; color: #888; font-weight: 500; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; }
-.iv-activity-title { font-size: 15px; font-weight: 700; color: #18181B; margin: 0 0 6px; line-height: 1.3; letter-spacing: -0.02em; }
+.iv-activity-title { font-size: 17px; font-weight: 700; color: #18181B; margin: 0 0 6px; line-height: 1.3; letter-spacing: -0.02em; }
 .iv-activity-desc { font-size: 13px; color: #52525B; line-height: 1.6; margin: 0; }
 .iv-tip-box-blue { background: #EBF5FB; border-left: 3px solid #3498DB; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: #1A5276; line-height: 1.5; display: flex; align-items: flex-start; gap: 8px; }
 .iv-tip-box-amber { background: #FFFBEB; border-left: 3px solid #F59E0B; border-radius: 8px; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: #78350F; line-height: 1.5; display: flex; align-items: flex-start; gap: 8px; }
@@ -362,7 +361,6 @@ const DAY_CSS = `
 .iv-hotel-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,0.12); }
 .iv-section-title { font-size: 21px; font-weight: 700; color: #18181B; margin: 0 0 4px; letter-spacing: -0.03em; }
 .iv-section-sub { font-size: 14px; color: #71717A; margin: 0 0 20px; font-weight: 400; }
-@media (max-width: 900px) { .iv-events-grid { grid-template-columns: 1fr; } .iv-activity-thumb { width: 100px; min-width: 100px; } }
 @media (max-width: 700px) { .iv-sidebar { display: none; } .iv-main { padding: 0 0 60px; } .iv-events-grid { grid-template-columns: 1fr; padding: 12px; } .iv-activity-row-qeeq { margin: 8px 12px; } .iv-day-item { margin: 16px 12px 0; } }
 `;
 
@@ -385,7 +383,7 @@ function NightActivityItem({ item, edits, onEdit, locale }: {
         <SmartPhoto
           query={displayName}
           fallbackUrl={PEXELS_FALLBACKS[item.type] ?? PEXELS_FALLBACKS.default}
-          height={130}
+          height="100%"
           radius={0}
         />
       </div>
@@ -454,7 +452,7 @@ function DayActivityItem({ item, edits, onEdit, locale }: {
         <SmartPhoto
           query={displayName}
           fallbackUrl={PEXELS_FALLBACKS[item.type] ?? PEXELS_FALLBACKS.default}
-          height={130}
+          height="100%"
           radius={0}
         />
       </div>
@@ -513,6 +511,14 @@ function DayCardDay({ day, isOpen, onToggle, edits, onEdit, locale }: {
   const difficultyColor = (day.items?.length ?? 0) > 5 ? "#FEE2E2" : (day.items?.length ?? 0) > 3 ? "#FEF3C7" : "#D1FAE5";
   const difficultyText = (day.items?.length ?? 0) > 5 ? "#DC2626" : (day.items?.length ?? 0) > 3 ? "#D97706" : "#059669";
 
+  // Ruta del día en Google Maps (paradas en orden, con coordenadas si están disponibles)
+  const routeStops = (day.items ?? []).filter(it => ["sight", "food", "event", "beach", "night"].includes(it.type));
+  const q = (s: string) => encodeURIComponent(s.trim());
+  const waypoints = routeStops.map(it => it.lat && it.lon ? `${it.lat},${it.lon}` : q(`${it.name} ${day.zone ?? ""}`)).join("/");
+  const routeUrl = routeStops.length >= 2
+    ? `https://www.google.com/maps/dir/${waypoints}`
+    : routeStops.length === 1 ? `https://www.google.com/maps/search/?api=1&query=${q(`${routeStops[0].name} ${day.zone ?? ""}`)}` : null;
+
   return (
     <div className="iv-day-item">
       {/* QEEQ-style day header */}
@@ -530,6 +536,13 @@ function DayCardDay({ day, isOpen, onToggle, edits, onEdit, locale }: {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {routeUrl && (
+            <a href={routeUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 11, padding: "5px 12px", background: "linear-gradient(135deg,#FF6B1A,#FF9A3D)", color: "#fff", borderRadius: 12, textDecoration: "none", fontWeight: 600, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(255,107,26,0.35)" }}>
+              🗺 {locale === "es" ? "Ruta en Maps" : "Route on Maps"} ↗
+            </a>
+          )}
           <span style={{ background: difficultyColor, color: difficultyText, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 999 }}>
             {difficultyLabel}
           </span>
@@ -559,6 +572,14 @@ function DayCardNight({ day, isOpen, onToggle, edits, onEdit, locale }: {
   const difficultyColor = (day.items?.length ?? 0) > 5 ? "rgba(220,38,38,0.2)" : (day.items?.length ?? 0) > 3 ? "rgba(217,119,6,0.2)" : "rgba(5,150,105,0.2)";
   const difficultyText = (day.items?.length ?? 0) > 5 ? "#F87171" : (day.items?.length ?? 0) > 3 ? "#FBBF24" : "#34D399";
 
+  // Ruta del día en Google Maps (paradas en orden, con coordenadas si están disponibles)
+  const routeStops = (day.items ?? []).filter(it => ["sight", "food", "event", "beach", "night"].includes(it.type));
+  const q = (s: string) => encodeURIComponent(s.trim());
+  const waypoints = routeStops.map(it => it.lat && it.lon ? `${it.lat},${it.lon}` : q(`${it.name} ${day.zone ?? ""}`)).join("/");
+  const routeUrl = routeStops.length >= 2
+    ? `https://www.google.com/maps/dir/${waypoints}`
+    : routeStops.length === 1 ? `https://www.google.com/maps/search/?api=1&query=${q(`${routeStops[0].name} ${day.zone ?? ""}`)}` : null;
+
   return (
     <div className="iv-day-item">
       {/* QEEQ-style day header (night version) */}
@@ -576,6 +597,13 @@ function DayCardNight({ day, isOpen, onToggle, edits, onEdit, locale }: {
           )}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+          {routeUrl && (
+            <a href={routeUrl} target="_blank" rel="noopener noreferrer"
+              onClick={e => e.stopPropagation()}
+              style={{ fontSize: 11, padding: "5px 12px", background: "linear-gradient(135deg,hsl(22 95% 55%),hsl(38 95% 58%))", color: "#fff", borderRadius: 12, textDecoration: "none", fontWeight: 600, whiteSpace: "nowrap", boxShadow: "0 4px 12px hsl(22 95% 55%/0.4)" }}>
+              🗺 {locale === "es" ? "Ruta en Maps" : "Route on Maps"} ↗
+            </a>
+          )}
           <span style={{ background: difficultyColor, color: difficultyText, fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 999 }}>
             {difficultyLabel}
           </span>
@@ -1033,7 +1061,45 @@ function MultiCityPanel({ cities, renderContent, isDayTheme }: {
   );
 }
 
-// ── RetryButton ───────────────────────────────────────────────────────────────
+// ── RetrySectionButton ──────────────────────────────────────────────────────
+// Botón para reintentar SOLO la sección/pestaña que no trajo resultados,
+// sin repetir toda la búsqueda (ahorra tokens).
+function RetrySectionButton({ onRetry, locale, isDayTheme }: {
+  onRetry: () => Promise<void>; locale: Locale; isDayTheme: boolean;
+}) {
+  const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
+  async function handle() {
+    setLoading(true);
+    await onRetry();
+    setLoading(false);
+    setDone(true);
+  }
+  return (
+    <div style={{ padding: isDayTheme ? "32px 24px" : "32px 0", textAlign: "center" }}>
+      <p style={{ margin: "0 0 12px", fontSize: 13, color: isDayTheme ? "#777" : "rgba(255,255,255,0.55)" }}>
+        {locale === "es"
+          ? "Esta sección no se generó. Puedes reintentar solo esta parte sin repetir todo el viaje."
+          : "This section couldn't be generated. You can retry just this part without redoing the whole trip."}
+      </p>
+      <button onClick={handle} disabled={loading} style={{
+        padding: "8px 20px", borderRadius: 8, border: "none", cursor: loading ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 600,
+        background: isDayTheme ? "#FF6B1A" : "rgba(255,120,30,0.15)", color: isDayTheme ? "#fff" : "hsl(22 95% 65%)", opacity: loading ? 0.6 : 1,
+      }}>
+        {loading
+          ? (locale === "es" ? "Reintentando..." : "Retrying...")
+          : (locale === "es" ? "Reintentar esta sección" : "Retry this section")}
+      </button>
+      {done && (
+        <p style={{ margin: "10px 0 0", fontSize: 12, color: isDayTheme ? "#999" : "rgba(255,255,255,0.4)" }}>
+          {locale === "es" ? "Si sigue vacío, intenta de nuevo en unos minutos." : "If it's still empty, try again in a few minutes."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+
 function RetryButton({ city, onRetry, locale, isDayTheme }: {
   city: string; onRetry: () => Promise<void>; locale: Locale; isDayTheme: boolean;
 }) {
@@ -1070,7 +1136,7 @@ const NAV_LABELS_EN: Record<string, string> = {
 // ═════════════════════════════════════════════════════════════════════════════
 // ── MAIN COMPONENT ────────────────────────────────────────────────────────────
 // ═════════════════════════════════════════════════════════════════════════════
-export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity }: Props) {
+export default function ItineraryView({ data, locale, onReset, form, cityResults = [], onRetryCity, onRetrySection }: Props) {
   const [isDayTheme, setIsDayTheme] = useState(true); // Day theme by default
   const [tab, setTab] = useState<"days"|"restaurants"|"events"|"hotels"|"extras"|"security"|"preparation"|"gastronomy"|"tips"|"budget">("days");
   const totalDays = (data.days ?? []).length;
@@ -1306,6 +1372,15 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
                     </div>
                   </div>
                 )}
+                {/* Single-destination: faltan días por generar */}
+                {cityResults.length <= 1 && onRetrySection && form?.startDate && form?.endDate && (() => {
+                  const sd = new Date(form.startDate + "T12:00:00");
+                  const ed = new Date(form.endDate + "T12:00:00");
+                  const expectedDays = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+                  return totalDays < expectedDays ? (
+                    <RetrySectionButton onRetry={() => onRetrySection("days")} locale={locale} isDayTheme={isDayTheme} />
+                  ) : null;
+                })()}
                 {/* Expand/collapse all */}
                 {totalDays > 1 && (
                   <div style={{ padding: isDayTheme ? "12px 24px 4px" : "12px 0 4px", display: "flex", justifyContent: "flex-end" }}>
@@ -1329,14 +1404,22 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             {tab === "restaurants" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <RestaurantsList restaurants={city.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <RestaurantsList restaurants={data.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.restaurants?.length
+                    ? <RestaurantsList restaurants={data.restaurants ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+                      : <RestaurantsList restaurants={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── EVENTS TAB ── */}
             {tab === "events" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <EventsList events={city.events ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <EventsList events={data.events ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.events?.length
+                    ? <EventsList events={data.events ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("events")} locale={locale} isDayTheme={isDayTheme} />
+                      : <EventsList events={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── HOTELS TAB ── */}
@@ -1383,20 +1466,41 @@ export default function ItineraryView({ data, locale, onReset, form, cityResults
             {tab === "security" && (
               cityResults.length > 1
                 ? <MultiCityPanel cities={cityResults} isDayTheme={isDayTheme} renderContent={(city) => <SecurityTab alerts={city.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />} />
-                : <SecurityTab alerts={data.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />
+                : (data.alerts?.length
+                    ? <SecurityTab alerts={data.alerts ?? []} locale={locale} isDayTheme={isDayTheme} />
+                    : onRetrySection
+                      ? <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+                      : <SecurityTab alerts={[]} locale={locale} isDayTheme={isDayTheme} />)
             )}
 
             {/* ── PREPARATION TAB ── */}
-            {tab === "preparation" && <PreparationTab items={data.preparation} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "preparation" && (
+              data.preparation?.length || !onRetrySection
+                ? <PreparationTab items={data.preparation} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── GASTRONOMY TAB ── */}
-            {tab === "gastronomy" && <GastronomyTab items={data.gastronomy} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "gastronomy" && (
+              data.gastronomy?.length || !onRetrySection
+                ? <GastronomyTab items={data.gastronomy} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── TIPS TAB ── */}
-            {tab === "tips" && <TipsTab items={data.tips} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "tips" && (
+              data.tips?.length || !onRetrySection
+                ? <TipsTab items={data.tips} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
 
             {/* ── BUDGET TAB ── */}
-            {tab === "budget" && <BudgetTab budget={data.budgetBreakdown} locale={locale} isDayTheme={isDayTheme} />}
+            {tab === "budget" && (
+              data.budgetBreakdown || !onRetrySection
+                ? <BudgetTab budget={data.budgetBreakdown} locale={locale} isDayTheme={isDayTheme} />
+                : <RetrySectionButton onRetry={() => onRetrySection("metadata")} locale={locale} isDayTheme={isDayTheme} />
+            )}
+
 
           </main>
         </div>
