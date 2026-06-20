@@ -420,7 +420,8 @@ function normalizeDayTimes(itinerary: ItineraryData, dayStart: string, dayEnd: s
 async function generateDaysSequential(
   form: TripFormData,
   totalDays: number,
-  onError?: (section: string, err: unknown) => void
+  onError?: (section: string, err: unknown) => void,
+  onlyDayNums?: number[] // si se especifica (retry parcial), solo genera los lotes que cubren estos días — evita repetir y consumir tokens de los días que ya salieron bien
 ): Promise<ItineraryData["days"]> {
   const BATCH_SIZE = 3; // 3 días * ~7 items * ~150 tokens/item = ~3150 tokens por lote
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -428,6 +429,7 @@ async function generateDaysSequential(
 
   for (let fromDay = 1; fromDay <= totalDays; fromDay += BATCH_SIZE) {
     const toDay = Math.min(fromDay + BATCH_SIZE - 1, totalDays);
+    if (onlyDayNums && !onlyDayNums.some(d => d >= fromDay && d <= toDay)) continue;
     const prompt = buildDaysBatchPrompt(form, fromDay, toDay);
 
     let raw: string;
@@ -477,6 +479,110 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
 
   const EVENTS_MODE = (process.env.EVENTS_MODE ?? "on").toLowerCase();
+
+  // ── RETRY PARCIAL DE UNA SECCIÓN ────────────────────────────
+  // Si el cliente pide solo una sección (porque esa pestaña falló y las demás
+  // ya tienen datos), generamos SOLO esa parte y la devolvemos, sin tocar ni
+  // volver a llamar a Groq por el resto. Esto evita consumir tokens de nuevo
+  // en secciones que ya se entregaron bien.
+  const section = (req.body as { section?: "days" | "metadata" | "events" }).section;
+  const missingDayNums = (req.body as { missingDayNums?: number[] }).missingDayNums;
+
+  if (section === "days") {
+    try {
+      const sd = new Date(form.startDate + "T12:00:00");
+      const ed = new Date(form.endDate + "T12:00:00");
+      const totalDays = Math.round((ed.getTime() - sd.getTime()) / 86400000) + 1;
+      const days = await generateDaysSequential(form, totalDays, undefined, missingDayNums);
+
+      const wikidataRes = await fetchWikidataAttractions(form.city).catch(() => [] as { name: string; description: string }[]);
+      for (const day of days ?? []) {
+        for (const item of day.items ?? []) {
+          if (item.type !== "sight") continue;
+          const match = wikidataRes.find(
+            p => p.name.toLowerCase().includes(item.name.toLowerCase().split(" ")[0])
+              || item.name.toLowerCase().includes(p.name.toLowerCase().split(" ")[0])
+          );
+          if (match?.description && match.description.length > 20) item.wikidataDescription = match.description;
+        }
+      }
+
+      const partialItinerary = { days } as ItineraryData;
+      await enrichWithGeoapify(partialItinerary, form);
+      normalizeDayTimes(partialItinerary, form.dayStartTime || "08:00", form.dayEndTime || "23:00");
+
+      return res.status(200).json({ days: partialItinerary.days });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ error: "Failed to retry days", detail: message });
+    }
+  }
+
+  if (section === "metadata") {
+    try {
+      const metaRaw = await callGroqWithRetry(buildMetadataPrompt(form), 3000, 0.6);
+      const metadata: Record<string, unknown> = JSON.parse(extractJSON(metaRaw));
+      const restaurants = (metadata.restaurants as ItineraryData["restaurants"]) ?? [];
+      await enrichRestaurantData(restaurants as unknown[], form.city);
+      return res.status(200).json({
+        tagline: metadata.tagline as string ?? "",
+        summary: metadata.summary as string ?? "",
+        weather: metadata.weather as ItineraryData["weather"] ?? undefined,
+        estimatedBudgetPerDay: metadata.estimatedBudgetPerDay as string ?? "",
+        restaurants,
+        alerts: (metadata.alerts as ItineraryData["alerts"]) ?? [],
+        preparation: (metadata.preparation as ItineraryData["preparation"]) ?? [],
+        gastronomy: (metadata.gastronomy as ItineraryData["gastronomy"]) ?? [],
+        tips: (metadata.tips as ItineraryData["tips"]) ?? [],
+        budgetBreakdown: (metadata.budgetBreakdown as ItineraryData["budgetBreakdown"]) ?? undefined,
+        metaEvents: (metadata.events as Event[]) ?? [],
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ error: "Failed to retry metadata", detail: message });
+    }
+  }
+
+  if (section === "events") {
+    try {
+      const tradEvents = await fetchTraditionalEvents(form);
+      const [tmRes, ebRes] = await Promise.allSettled([
+        fetchTicketmaster(form.city, form.startDate, form.endDate),
+        fetchEventbrite(form.city, form.startDate, form.endDate),
+      ]);
+      const tmEvents = tmRes.status === "fulfilled" ? tmRes.value : [];
+      const ebEvents = ebRes.status === "fulfilled" ? ebRes.value : [];
+
+      const ckey = cacheKey(form.city, form.country, form.startDate, form.endDate);
+      const cached = EVENTS_CACHE.get(ckey);
+      const cacheValid = cached && (Date.now() - cached.ts) < EVENTS_TTL_MS;
+      let rapidEvents: Event[] = [];
+      if (cacheValid) {
+        rapidEvents = cached!.events;
+      } else if (EVENTS_MODE !== "off" && EVENTS_MODE !== "cache-only") {
+        rapidEvents = await fetchRapidEvents(form.city, form.country, form.startDate, form.endDate);
+        EVENTS_CACHE.set(ckey, { ts: Date.now(), events: rapidEvents });
+      }
+
+      const seen = new Set<string>();
+      const events: Event[] = [];
+      for (const arr of [tradEvents, tmEvents, ebEvents, rapidEvents]) {
+        for (const ev of arr) {
+          const k = (ev?.name ?? "").toLowerCase().trim();
+          if (!k || seen.has(k)) continue;
+          events.push(ev);
+          seen.add(k);
+        }
+      }
+      events.sort((a, b) => (a.when ?? "").localeCompare(b.when ?? ""));
+      return res.status(200).json({ events });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      return res.status(500).json({ error: "Failed to retry events", detail: message });
+    }
+  }
+
+  // ── FLUJO COMPLETO (sin sección) — exactamente igual que antes ─────
 
   try {
     const sd = new Date(form.startDate + "T12:00:00");
