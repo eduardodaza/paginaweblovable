@@ -261,7 +261,7 @@ const NIGHT_CSS = `
 @keyframes iv-fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-.iv-layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; width: 100%; }
+.iv-layout { display: flex; min-height: 100vh; width: 100%; }
 .iv-sidebar { width: clamp(220px, 19vw, 300px); min-width: clamp(220px, 19vw, 300px); position: sticky; top: 0; height: 100vh; overflow-y: auto; background: hsl(240 45% 8%); border-right: 1px solid rgba(255,255,255,0.08); z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 16px rgba(0,0,0,0.3); }
 .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
 .iv-main { flex: 1; min-width: 0; padding: 0 0 80px; background: transparent; }
@@ -320,7 +320,7 @@ const DAY_CSS = `
 @keyframes iv-fade-in { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
 .iv-animate { animation: iv-fade-in 0.3s ease forwards; }
 @keyframes iv-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
-.iv-layout { display: flex; min-height: 100vh; max-width: 1280px; margin: 0 auto; width: 100%; }
+.iv-layout { display: flex; min-height: 100vh; width: 100%; }
 .iv-sidebar { width: clamp(220px, 19vw, 300px); min-width: clamp(220px, 19vw, 300px); position: sticky; top: 0; height: 100vh; overflow-y: auto; background: #FFFFFF; border-right: 1px solid #E8E7E3; z-index: 10; padding: 0 0 40px; flex-shrink: 0; box-shadow: 2px 0 8px rgba(0,0,0,0.04); }
 .iv-sidebar::-webkit-scrollbar { width: 3px; } .iv-sidebar::-webkit-scrollbar-track { background: transparent; } .iv-sidebar::-webkit-scrollbar-thumb { background: #D1D0CC; border-radius: 4px; }
 .iv-main { flex: 1; min-width: 0; padding: 0 0 80px; background: #F4F3EF; }
